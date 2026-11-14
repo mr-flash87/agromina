@@ -258,3 +258,41 @@ function admin_head(string $title): void
   <link rel="stylesheet" href="<?= e(asset('css/style.css')) ?>">
 <?php
 }
+
+/**
+ * Page de texte légal : sommaire cliquable + sections.
+ * @param array<int, array{0:string,1:string}> $sections [titre, HTML]
+ */
+function legal_page(array $sections, string $updated): void
+{
+    echo '<div class="container legal-layout"><nav class="card legal-toc" aria-label="Sommaire"><b>Sommaire</b><ol>';
+    foreach ($sections as $i => [$title]) {
+        echo '<li><a href="#s' . ($i + 1) . '">' . e($title) . '</a></li>';
+    }
+    echo '</ol></nav><div class="legal-body"><p class="legal-updated">Dernière mise à jour : ' . e($updated) . '</p>';
+    foreach ($sections as $i => [$title, $html]) {
+        echo '<section id="s' . ($i + 1) . '"><h2><span>' . ($i + 1) . '.</span> ' . e($title) . '</h2>' . $html . '</section>';
+    }
+    echo '</div></div>';
+}
+
+/** Bloc « Qui sommes-nous » pour les pages légales (seules les informations renseignées s'affichent). */
+function legal_identity(): string
+{
+    $rows = [
+        'Nom commercial' => (string) cfg('legal_name', 'AgroMina'),
+        'Forme juridique' => (string) cfg('legal_form', ''),
+        'NINEA' => (string) cfg('legal_ninea', ''),
+        'RCCM' => (string) cfg('legal_rccm', ''),
+        'Adresse' => (string) cfg('contact_address', 'Delta du Saloum, Sénégal'),
+        'Téléphone' => (string) cfg('contact_phone', ''),
+        'E-mail' => (string) cfg('contact_email', 'contact@agromina.sn'),
+    ];
+    $html = '<ul class="legal-id">';
+    foreach ($rows as $k => $v) {
+        if ($v !== '' && !preg_match('/^\+?221\s?0{2}/', $v)) {
+            $html .= '<li><span>' . e($k) . '</span><b>' . e($v) . '</b></li>';
+        }
+    }
+    return $html . '</ul>';
+}

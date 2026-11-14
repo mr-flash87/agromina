@@ -25,6 +25,12 @@ return [
     'facebook_url' => '#',
     'instagram_url' => '#',
 
+    // Informations légales affichées dans les CGV et la politique de confidentialité (laisser vide si non applicable)
+    'legal_name' => 'AgroMina',
+    'legal_form' => '',      // ex. 'SARL', 'Entreprise individuelle'
+    'legal_ninea' => '',
+    'legal_rccm' => '',
+
     // Adresse qui reçoit un e-mail à chaque commande et message de contact (laisser vide pour désactiver)
     'order_notify_email' => '',
 
