@@ -77,7 +77,6 @@ function page_header(array $o = []): void
         <a href="<?= e(url($path)) ?>" class="<?= $active === $path ? 'is-active' : '' ?>"><?= e($label) ?></a>
       <?php endforeach; ?>
       <span class="promo-hint"><b>PROMOS</b> jusqu'à −20 % cette semaine</span>
-      <?php if (is_staff($user)): ?><a href="<?= e(url('admin/')) ?>" class="admin-link">Espace admin</a><?php endif; ?>
     </div>
   </nav>
 </header>
@@ -204,6 +203,7 @@ function product_card(array $p, array $attrs = []): string
 {
     $cat = category_of($p['category']);
     $out = $p['stock'] === 0;
+    $low = !$out && $p['stock'] < 5;
     $href = e(url('produit/' . $p['slug']));
     $disc = discount_pct($p);
     $extra = '';
@@ -211,23 +211,24 @@ function product_card(array $p, array $attrs = []): string
         $extra .= ' ' . e($k) . '="' . e($v) . '"';
     }
     ob_start(); ?>
-<article class="pcard" data-slug="<?= e($p['slug']) ?>"<?= $extra ?>>
-  <div class="pcard-media">
-    <a href="<?= $href ?>"><img src="<?= e(product_image($p)) ?>" alt="<?= e($p['name']) ?>" loading="lazy"></a>
-    <div class="pcard-tags">
-      <?php if ($disc): ?><span class="tag tag-accent">−<?= $disc ?> %</span><?php endif; ?>
-      <?php if ($p['is_new']): ?><span class="tag tag-primary">Nouveau</span><?php endif; ?>
-    </div>
-    <button type="button" class="fav-btn" data-fav="<?= e($p['slug']) ?>" aria-label="Favori"><?= icon('heart') ?></button>
+<article class="pcard<?= $out ? ' is-out' : '' ?>" data-slug="<?= e($p['slug']) ?>"<?= $extra ?>>
+  <a class="pcard-media" href="<?= $href ?>" tabindex="-1" aria-hidden="true">
+    <img src="<?= e(product_image($p)) ?>" alt="" loading="lazy">
+    <?php if ($out): ?><span class="pcard-out">Rupture de stock</span><?php endif; ?>
+  </a>
+  <div class="pcard-tags">
+    <?php if ($disc): ?><span class="tag tag-accent">−<?= $disc ?> %</span><?php endif; ?>
+    <?php if ($p['is_new']): ?><span class="tag tag-primary">Nouveau</span><?php endif; ?>
+    <?php if ($p['best_seller'] && !$disc && !$p['is_new']): ?><span class="tag tag-card">★ Top vente</span><?php endif; ?>
   </div>
+  <button type="button" class="fav-btn" data-fav="<?= e($p['slug']) ?>" aria-label="Ajouter <?= e($p['name']) ?> aux favoris"><?= icon('heart') ?></button>
   <div class="pcard-body">
-    <span class="pcard-cat"><?= e($cat['name']) ?></span>
+    <span class="pcard-cat"><?= e($cat['short'] ?? $cat['name']) ?><?= $p['weight'] ? ' · ' . e($p['weight']) : '' ?></span>
     <a href="<?= $href ?>" class="pcard-name"><?= e($p['name']) ?></a>
-    <div class="pcard-price"><strong><?= fcfa($p['price']) ?></strong><?php if ($p['old_price']): ?><s><?= fcfa($p['old_price']) ?></s><?php endif; ?></div>
-    <span class="pcard-stock <?= $out ? 'is-out' : '' ?>"><?= $out ? 'Rupture de stock' : 'En stock' ?></span>
-    <div class="pcard-actions">
-      <button type="button" class="btn btn-accent btn-sm" data-add="<?= e($p['slug']) ?>" data-name="<?= e($p['name']) ?>" <?= $out ? 'disabled' : '' ?>><?= icon('cart') ?> Ajouter</button>
-      <a href="<?= $href ?>" class="btn btn-outline btn-sm">Voir</a>
+    <?php if ($low): ?><span class="pcard-low">Plus que <?= $p['stock'] ?> en stock</span><?php endif; ?>
+    <div class="pcard-foot">
+      <div class="pcard-price"><strong><?= fcfa($p['price']) ?></strong><?php if ($p['old_price']): ?><s><?= fcfa($p['old_price']) ?></s><?php endif; ?></div>
+      <button type="button" class="add-btn" data-add="<?= e($p['slug']) ?>" data-name="<?= e($p['name']) ?>" aria-label="Ajouter <?= e($p['name']) ?> au panier" <?= $out ? 'disabled' : '' ?>><?= icon('plus') ?><span>Ajouter</span></button>
     </div>
   </div>
 </article>

@@ -4,12 +4,12 @@ declare(strict_types=1);
 /* ---------------------------------------------------------------- Constantes boutique */
 
 const CATEGORIES = [
-    'cereales' => ['name' => 'Céréales locales transformées', 'image' => 'cat-cereales.jpg'],
-    'jus' => ['name' => 'Jus et boissons naturelles', 'image' => 'cat-jus.jpg'],
-    'fruits-legumes' => ['name' => 'Fruits et légumes transformés', 'image' => 'cat-fruits.jpg'],
-    'halieutiques' => ['name' => 'Produits halieutiques', 'image' => 'cat-halieutiques.jpg'],
-    'artisanaux' => ['name' => 'Produits traditionnels et artisanaux', 'image' => 'cat-artisanaux.jpg'],
-    'autres' => ['name' => 'Autres produits locaux', 'image' => 'cat-autres.jpg'],
+    'cereales' => ['short' => 'Céréales', 'name' => 'Céréales locales transformées', 'image' => 'cat-cereales.jpg'],
+    'jus' => ['short' => 'Jus & boissons', 'name' => 'Jus et boissons naturelles', 'image' => 'cat-jus.jpg'],
+    'fruits-legumes' => ['short' => 'Fruits & légumes', 'name' => 'Fruits et légumes transformés', 'image' => 'cat-fruits.jpg'],
+    'halieutiques' => ['short' => 'Produits de la mer', 'name' => 'Produits halieutiques', 'image' => 'cat-halieutiques.jpg'],
+    'artisanaux' => ['short' => 'Artisanat', 'name' => 'Produits traditionnels et artisanaux', 'image' => 'cat-artisanaux.jpg'],
+    'autres' => ['short' => 'Autres', 'name' => 'Autres produits locaux', 'image' => 'cat-autres.jpg'],
 ];
 
 const PAYMENT_METHODS = ['Paiement à la livraison', 'Wave', 'Orange Money'];

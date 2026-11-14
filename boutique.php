@@ -10,12 +10,13 @@ $nouveau = $flag('nouveau');
 $best = $flag('best');
 $dispo = $flag('dispo');
 $max = (int) ($_GET['max'] ?? 0);
-$max = $max > 0 && $max < 5000 ? $max : 0;
-$tri = in_array($_GET['tri'] ?? '', ['asc', 'desc'], true) ? $_GET['tri'] : '';
+$max = in_array($max, [1000, 2000, 3000, 5000], true) ? $max : 0;
+$tri = in_array($_GET['tri'] ?? '', ['asc', 'desc', 'new'], true) ? $_GET['tri'] : '';
 
+$all = get_products();
 $needle = normalize_text($q);
-$list = array_values(array_filter(get_products(), static function ($p) use ($needle, $cat, $promo, $nouveau, $best, $dispo, $max) {
-    if ($needle !== '' && !str_contains(normalize_text($p['name'] . ' ' . category_of($p['category'])['name']), $needle)) return false;
+$visible = static function (array $p) use ($needle, $cat, $promo, $nouveau, $best, $dispo, $max): bool {
+    if ($needle !== '' && !str_contains(normalize_text($p['name'] . ' ' . category_of($p['category'])['name'] . ' ' . $p['description']), $needle)) return false;
     if ($cat && $p['category'] !== $cat) return false;
     if ($promo && !$p['old_price']) return false;
     if ($nouveau && !$p['is_new']) return false;
@@ -23,60 +24,118 @@ $list = array_values(array_filter(get_products(), static function ($p) use ($nee
     if ($dispo && $p['stock'] === 0) return false;
     if ($max && $p['price'] > $max) return false;
     return true;
-}));
-if ($tri === 'asc') usort($list, fn($a, $b) => $a['price'] <=> $b['price']);
-if ($tri === 'desc') usort($list, fn($a, $b) => $b['price'] <=> $a['price']);
+};
+if ($tri === 'asc') usort($all, fn($a, $b) => $a['price'] <=> $b['price']);
+if ($tri === 'desc') usort($all, fn($a, $b) => $b['price'] <=> $a['price']);
+if ($tri === 'new') usort($all, fn($a, $b) => [$b['is_new'], $b['created_at']] <=> [$a['is_new'], $a['created_at']]);
+
+$byCat = [];
+$counts = [];
+$shown = 0;
+foreach ($all as $i => $p) {
+    $p['_order'] = $i;
+    $byCat[$p['category']][] = $p;
+    $counts[$p['category']] = ($counts[$p['category']] ?? 0) + 1;
+    if ($visible($p)) $shown++;
+}
+$total = count($all);
+$hasFilter = $q !== '' || $cat || $promo || $nouveau || $best || $dispo || $max || $tri;
 
 page_header([
     'title' => 'Boutique – AgroMina',
     'description' => 'Tous les produits AgroMina : céréales, jus, fruits transformés, produits halieutiques et artisanaux.',
     'active' => 'boutique',
+    'body_class' => 'page-shop',
 ]);
-page_hero('Boutique', 'Les produits locaux transformés du Delta du Saloum.');
-$n = count($list);
 ?>
-<div class="container shop-layout">
-  <form class="card filters" method="get" action="<?= e(url('boutique')) ?>" data-filters>
-    <input type="hidden" name="tri" value="<?= e($tri) ?>">
+<section class="shop-hero">
+  <div class="container shop-hero-inner">
     <div>
-      <h3>Recherche</h3>
-      <input class="field" name="q" value="<?= e($q) ?>" placeholder="Nom ou catégorie">
+      <p class="eyebrow">La boutique AgroMina</p>
+      <h1>Le terroir du Saloum,<br>livré chez vous.</h1>
+      <p class="shop-hero-sub"><?= $total ?> produits locaux transformés avec soin · Paiement à la livraison ou Mobile Money</p>
     </div>
-    <div>
-      <h3>Catégorie</h3>
-      <select class="select" name="cat">
-        <option value="">Toutes</option>
-        <?php foreach (CATEGORIES as $slug => $c): ?>
-          <option value="<?= e($slug) ?>" <?= $cat === $slug ? 'selected' : '' ?>><?= e($c['name']) ?></option>
+    <form class="shop-search" method="get" action="<?= e(url('boutique')) ?>" role="search" data-shop-search>
+      <?= icon('search') ?>
+      <input name="q" value="<?= e($q) ?>" placeholder="Rechercher : bissap, fonio, miel…" aria-label="Rechercher un produit" autocomplete="off">
+      <?php if ($cat): ?><input type="hidden" name="cat" value="<?= e($cat) ?>"><?php endif; ?>
+      <button class="btn btn-accent">Rechercher</button>
+    </form>
+  </div>
+</section>
+
+<form class="shop-bar" method="get" action="<?= e(url('boutique')) ?>" data-shop>
+  <input type="hidden" name="q" value="<?= e($q) ?>">
+  <div class="container">
+    <div class="cat-chips" role="radiogroup" aria-label="Catégories">
+      <label class="cat-chip<?= $cat === '' ? ' is-active' : '' ?>"><input type="radio" name="cat" value="" <?= $cat === '' ? 'checked' : '' ?>><span class="cat-chip-all"><?= icon('store') ?></span>Tout <small><?= $total ?></small></label>
+      <?php foreach (CATEGORIES as $slug => $c): ?>
+        <label class="cat-chip<?= $cat === $slug ? ' is-active' : '' ?>"><input type="radio" name="cat" value="<?= e($slug) ?>" <?= $cat === $slug ? 'checked' : '' ?>><img src="<?= e(img($c['image'])) ?>" alt="" loading="lazy"><?= e($c['short']) ?> <small><?= $counts[$slug] ?? 0 ?></small></label>
+      <?php endforeach; ?>
+    </div>
+    <div class="shop-tools">
+      <div class="toggle-chips">
+        <label class="tchip"><input type="checkbox" name="promo" value="1" <?= $promo ? 'checked' : '' ?>><span>🔥 Promos</span></label>
+        <label class="tchip"><input type="checkbox" name="nouveau" value="1" <?= $nouveau ? 'checked' : '' ?>><span>✨ Nouveautés</span></label>
+        <label class="tchip"><input type="checkbox" name="best" value="1" <?= $best ? 'checked' : '' ?>><span>⭐ Meilleures ventes</span></label>
+        <label class="tchip"><input type="checkbox" name="dispo" value="1" <?= $dispo ? 'checked' : '' ?>><span>En stock</span></label>
+      </div>
+      <div class="shop-selects">
+        <label class="sel"><span>Prix</span>
+          <select name="max">
+            <option value="">Tous</option>
+            <?php foreach ([1000, 2000, 3000, 5000] as $m): ?><option value="<?= $m ?>" <?= $max === $m ? 'selected' : '' ?>>≤ <?= e(fcfa($m)) ?></option><?php endforeach; ?>
+          </select>
+        </label>
+        <label class="sel"><span>Trier</span>
+          <select name="tri">
+            <option value="">Par catégorie</option>
+            <option value="asc" <?= $tri === 'asc' ? 'selected' : '' ?>>Prix croissant</option>
+            <option value="desc" <?= $tri === 'desc' ? 'selected' : '' ?>>Prix décroissant</option>
+            <option value="new" <?= $tri === 'new' ? 'selected' : '' ?>>Nouveautés d'abord</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <noscript><button class="btn btn-primary btn-sm" style="margin-top:.5rem">Appliquer</button></noscript>
+  </div>
+</form>
+
+<div class="container shop-results">
+  <div class="results-bar">
+    <p><b data-count><?= $shown ?></b> produit<span data-plural><?= $shown > 1 ? 's' : '' ?></span><?php if ($q !== ''): ?> pour « <span data-q><?= e($q) ?></span> »<?php endif; ?></p>
+    <a href="<?= e(url('boutique')) ?>" class="reset-link" data-reset <?= $hasFilter ? '' : 'hidden' ?>><?= icon('x') ?> Effacer les filtres</a>
+  </div>
+
+  <?php foreach (CATEGORIES as $slug => $c): $items = $byCat[$slug] ?? []; if (!$items) continue;
+      $n = count(array_filter($items, $visible)); ?>
+    <section class="shop-section" data-section="<?= e($slug) ?>" <?= $n ? '' : 'hidden' ?>>
+      <header class="shop-section-head">
+        <img src="<?= e(img($c['image'])) ?>" alt="" loading="lazy">
+        <div><h2><?= e($c['name']) ?></h2><p><span data-section-count><?= $n ?></span> produit<?= $n > 1 ? 's' : '' ?></p></div>
+      </header>
+      <div class="grid-products shop-grid">
+        <?php foreach ($items as $p): ?>
+          <?= product_card($p, array_merge([
+              'data-cat' => $p['category'],
+              'data-price' => (string) $p['price'],
+              'data-promo' => $p['old_price'] ? '1' : '0',
+              'data-new' => $p['is_new'] ? '1' : '0',
+              'data-best' => $p['best_seller'] ? '1' : '0',
+              'data-stock' => (string) $p['stock'],
+              'data-order' => (string) $p['_order'],
+              'data-search' => normalize_text($p['name'] . ' ' . $c['name'] . ' ' . $p['description']),
+          ], $visible($p) ? [] : ['hidden' => 'hidden'])) ?>
         <?php endforeach; ?>
-      </select>
-    </div>
-    <div>
-      <h3>Prix maximum : <span data-max-label><?= $max ? e($max . ' FCFA') : 'tous' ?></span></h3>
-      <input type="range" name="max" min="500" max="5000" step="500" value="<?= $max ?: 5000 ?>">
-    </div>
-    <div class="checks">
-      <label class="check"><input type="checkbox" name="dispo" value="1" <?= $dispo ? 'checked' : '' ?>>En stock uniquement</label>
-      <label class="check"><input type="checkbox" name="nouveau" value="1" <?= $nouveau ? 'checked' : '' ?>>Nouveautés</label>
-      <label class="check"><input type="checkbox" name="promo" value="1" <?= $promo ? 'checked' : '' ?>>Promotions</label>
-      <label class="check"><input type="checkbox" name="best" value="1" <?= $best ? 'checked' : '' ?>>Meilleures ventes</label>
-    </div>
-    <noscript><button class="btn btn-primary btn-sm">Filtrer</button></noscript>
-  </form>
-  <div>
-    <div class="shop-bar">
-      <span class="muted"><?= $n ?> produit<?= $n > 1 ? 's' : '' ?></span>
-      <select class="select" style="width:auto" data-sort aria-label="Trier">
-        <option value="">Pertinence</option>
-        <option value="asc" <?= $tri === 'asc' ? 'selected' : '' ?>>Prix croissant</option>
-        <option value="desc" <?= $tri === 'desc' ? 'selected' : '' ?>>Prix décroissant</option>
-      </select>
-    </div>
-    <?php if ($list): ?>
-      <div class="grid-products"><?php foreach ($list as $p) echo product_card($p); ?></div>
-    <?php else: ?>
-      <p class="card empty-box">Aucun produit ne correspond à votre recherche.</p>
-    <?php endif; ?>
+      </div>
+    </section>
+  <?php endforeach; ?>
+
+  <div class="card shop-empty" data-empty <?= $shown ? 'hidden' : '' ?>>
+    <span class="round-icon"><?= icon('search') ?></span>
+    <h2>Aucun produit trouvé</h2>
+    <p>Essayez un autre mot ou retirez quelques filtres.</p>
+    <a href="<?= e(url('boutique')) ?>" class="btn btn-primary">Voir tous les produits</a>
   </div>
 </div>
 <?php page_footer(); ?>
