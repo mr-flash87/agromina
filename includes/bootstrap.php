@@ -50,6 +50,12 @@ session_start();
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('X-Frame-Options: SAMEORIGIN');
+// Pages toujours à jour : ni le cache Hostinger (LiteSpeed/CDN) ni le navigateur ne gardent de copie
+// (prix, stock et promotions changent ; chaque page contient aussi un jeton de sécurité).
+header('Cache-Control: no-cache, no-store, must-revalidate, private');
+header('Pragma: no-cache');
+header('X-LiteSpeed-Cache-Control: no-cache');
+header('Vary: Cookie');
 
 require __DIR__ . '/db.php';
 require __DIR__ . '/functions.php';

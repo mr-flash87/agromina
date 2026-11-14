@@ -3,7 +3,7 @@
    - Styles, scripts, images : cache d'abord
    - Polices Google : cache puis mise à jour en arrière-plan
    Les commandes, connexions et envois de formulaires (POST) ne passent jamais par le cache. */
-const VERSION = "am-v4";
+const VERSION = "am-v5";
 const PAGES = "am-pages-" + VERSION;
 const ASSETS = "am-assets-" + VERSION;
 const FONTS = "am-fonts-" + VERSION;

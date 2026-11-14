@@ -53,6 +53,11 @@ ErrorDocument 404 /404.php
   AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
 </IfModule>
 
+# Cache Hostinger (LiteSpeed) : ne jamais garder de copie des pages PHP, seulement des images, styles et scripts
+<IfModule LiteSpeed>
+  CacheDisable public /
+</IfModule>
+
 # Application admin installable (PWA)
 AddType application/manifest+json .webmanifest
 <Files "sw.js">
