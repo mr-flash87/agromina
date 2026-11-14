@@ -229,12 +229,40 @@ function require_staff(): array
 {
     $u = current_user();
     if (!$u) {
-        redirect(url('connexion', ['next' => '/admin']));
+        $here = $_SERVER['REQUEST_URI'] ?? '';
+        $base = rtrim((string) cfg('base_url', ''), '/');
+        $next = $base !== '' && str_starts_with($here, $base) ? substr($here, strlen($base)) : $here;
+        redirect(url('admin/connexion', ['next' => $next]));
     }
     if (!is_staff($u)) {
         flash('error', "Accès refusé : ce compte n'est pas administrateur.");
-        redirect(url('compte'));
+        redirect(url('admin/connexion'));
     }
+    return $u;
+}
+
+/**
+ * Vérifie un e-mail et un mot de passe (avec limite de tentatives).
+ * Renvoie la fiche du compte, ou un message d'erreur.
+ */
+function check_credentials(string $email, string $password): array|string
+{
+    $now = time();
+    $_SESSION['login_fail'] = array_values(array_filter($_SESSION['login_fail'] ?? [], fn($t) => $t > $now - 900));
+    if (count($_SESSION['login_fail']) >= 8) {
+        return 'Trop de tentatives. Réessayez dans quelques minutes.';
+    }
+    $st = db()->prepare('SELECT id, email, password_hash, role FROM users WHERE email = ?');
+    $st->execute([mb_strtolower(trim($email))]);
+    $u = $st->fetch();
+    if (!$u || !password_verify($password, $u['password_hash'])) {
+        $_SESSION['login_fail'][] = $now;
+        return 'Connexion impossible. Vérifiez votre e-mail et votre mot de passe.';
+    }
+    if (password_needs_rehash($u['password_hash'], PASSWORD_DEFAULT)) {
+        db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([password_hash($password, PASSWORD_DEFAULT), $u['id']]);
+    }
+    unset($_SESSION['login_fail']);
     return $u;
 }
 

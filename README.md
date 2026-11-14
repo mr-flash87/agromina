@@ -59,7 +59,7 @@ devant les deux lignes « Forcer HTTPS ».
 
 ### 5. C'est en ligne
 - Boutique : `https://votre-domaine.com/`
-- Admin : `https://votre-domaine.com/connexion` (vous êtes redirigé vers `/admin/`)
+- Admin : `https://votre-domaine.com/admin` (page de connexion propre à l'admin)
 
 ## Réglages utiles
 

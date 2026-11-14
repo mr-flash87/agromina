@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /** Signature du créateur du site (bas de page). Numéro WhatsApp au format international, sans + ni espaces. */
-const AGENCY_WHATSAPP = '';
+const AGENCY_WHATSAPP = '22668880672';
 
 const NAV = [
     '' => 'Accueil',
@@ -229,4 +229,30 @@ function product_card(array $p, array $attrs = []): string
 </article>
 <?php
     return (string) ob_get_clean();
+}
+
+/** Balises <head> de l'espace admin (application installable). */
+function admin_head(string $title): void
+{
+    ?>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title><?= e($title) ?> – AgroMina Admin</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Gestion de la boutique AgroMina : commandes, produits, clients et équipe.">
+  <meta name="theme-color" content="#126333">
+  <meta name="application-name" content="AgroMina Admin">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AgroMina Admin">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="<?= e(url('admin/manifest.php')) ?>">
+  <link rel="icon" type="image/png" sizes="192x192" href="<?= e(img('admin-icon-192.png')) ?>">
+  <link rel="apple-touch-icon" sizes="180x180" href="<?= e(img('admin-icon-180.png')) ?>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <script>try { if (localStorage.getItem("am-admin-theme") === "dark") document.documentElement.classList.add("dark"); } catch (e) {}</script>
+  <link rel="stylesheet" href="<?= e(asset('css/style.css')) ?>">
+<?php
 }

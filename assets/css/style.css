@@ -840,3 +840,19 @@ html.dark .prose, html.dark .hero-text { color: var(--fg); }
 .editor-help code { border-radius: 4px; background: var(--muted); padding: .1rem .35rem; color: var(--fg); }
 .agency { font-weight: 700; color: #fff; border-bottom: 1px dashed rgba(255, 255, 255, .5); transition: color .15s, border-color .15s; }
 a.agency:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ------------------------------------------------------------------ Connexion admin */
+.admin-login { display: grid; min-height: 100vh; min-height: 100dvh; place-items: center; padding: 1.5rem 1rem; background: radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--secondary) 80%, transparent), transparent 55%), var(--muted); }
+.login-wrap { width: 100%; max-width: 26rem; display: grid; gap: 1.25rem; padding-top: env(safe-area-inset-top); }
+.login-brand { display: flex; flex-direction: column; align-items: center; gap: .75rem; }
+.login-brand img { height: 60px; width: auto; aspect-ratio: 3.4 / 1; object-fit: cover; border-radius: 12px; background: #fff; box-shadow: var(--shadow); }
+.login-brand span { border-radius: 999px; background: var(--secondary); color: var(--primary); padding: .25rem .75rem; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.login-card { display: grid; gap: .875rem; padding: 1.75rem 1.5rem; }
+@media (min-width: 640px) { .login-card { padding: 2.25rem 2rem; } }
+.login-card h1 { font-size: 1.75rem; font-weight: 700; }
+.login-card .muted { margin-top: -.5rem; font-size: .875rem; }
+.login-card .field { padding: .75rem .875rem; font-size: 1rem; border-radius: .75rem; }
+.login-card .btn { margin-top: .25rem; }
+.login-help { text-align: center; font-size: .75rem; color: var(--muted-fg); }
+.login-back { justify-self: center; display: inline-flex; align-items: center; gap: .5rem; font-size: .875rem; font-weight: 600; color: var(--primary); }
+.login-back .ic { width: 16px; height: 16px; }

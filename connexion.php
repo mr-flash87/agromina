@@ -13,29 +13,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = mb_strtolower(str_input('email', 190));
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
 
-    $now = time();
-    $_SESSION['login_fail'] = array_values(array_filter($_SESSION['login_fail'] ?? [], fn($t) => $t > $now - 900));
-    if (count($_SESSION['login_fail']) >= 8) {
-        $err = 'Trop de tentatives. Réessayez dans quelques minutes.';
-    } else {
-        $st = db()->prepare('SELECT id, password_hash FROM users WHERE email = ?');
-        $st->execute([$email]);
-        $u = $st->fetch();
-        if ($u && password_verify($password, $u['password_hash'])) {
-            if (password_needs_rehash($u['password_hash'], PASSWORD_DEFAULT)) {
-                db()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([password_hash($password, PASSWORD_DEFAULT), $u['id']]);
-            }
-            unset($_SESSION['login_fail']);
-            login_user((int) $u['id']);
-            $target = safe_next($next, '');
-            if ($target === '') {
-                $target = is_staff(current_user()) ? url('admin/') : url('compte');
-            }
-            redirect($target);
+    $u = check_credentials($email, $password);
+    if (is_array($u)) {
+        login_user((int) $u['id']);
+        $target = safe_next($next, '');
+        if ($target === '') {
+            $target = is_staff(current_user()) ? url('admin/') : url('compte');
         }
-        $_SESSION['login_fail'][] = $now;
-        $err = 'Connexion impossible. Vérifiez votre e-mail et votre mot de passe.';
+        redirect($target);
     }
+    $err = $u;
 }
 
 page_header(['title' => 'Connexion – AgroMina', 'description' => 'Connectez-vous à votre compte AgroMina.', 'noindex' => true]);
