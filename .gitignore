@@ -5,3 +5,6 @@ includes/install.lock
 uploads/products/*
 !uploads/products/.gitkeep
 includes/sessions/
+uploads/blog/*
+!uploads/blog/.gitkeep
+includes/.schema-v2

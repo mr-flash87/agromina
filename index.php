@@ -99,17 +99,19 @@ page_header(['active' => '']);
   </div>
 </section>
 
+<?php $latest = get_posts(true, 3); if ($latest): ?>
 <section class="container section">
-  <div class="section-head"><h2 class="section-title">Blog et actualités</h2></div>
+  <div class="section-head"><h2 class="section-title">Blog et actualités</h2><a class="see-all" href="<?= e(url('blog')) ?>">Tout voir <?= icon('arrow-right') ?></a></div>
   <div class="posts">
-    <?php foreach (BLOG_POSTS as $post): ?>
-      <a href="<?= e(url('blog')) ?>#<?= e($post['slug']) ?>" class="card post">
-        <img src="<?= e(img($post['image'])) ?>" alt="" loading="lazy">
-        <div class="post-body"><time><?= e($post['date']) ?></time><h3><?= e($post['title']) ?></h3></div>
+    <?php foreach ($latest as $post): ?>
+      <a href="<?= e(url('blog/' . $post['slug'])) ?>" class="card post">
+        <img src="<?= e(media_url($post['image_url'])) ?>" alt="" loading="lazy">
+        <div class="post-body"><time><?= e(post_date($post)) ?></time><h3><?= e($post['title']) ?></h3></div>
       </a>
     <?php endforeach; ?>
   </div>
 </section>
+<?php endif; ?>
 
 <section class="container section">
   <div class="newsletter">

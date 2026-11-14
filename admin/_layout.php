@@ -54,6 +54,7 @@ function admin_header(string $title, string $active): void
       <?php foreach (ADMIN_TABS as $k => [$label, , $path]): ?>
         <a href="<?= e(url($path)) ?>" class="<?= $active === $k ? 'is-active' : '' ?>"><?= e($label) ?></a>
       <?php endforeach; ?>
+      <a href="<?= e(url('admin/blog')) ?>" class="<?= $active === 'blog' ? 'is-active' : '' ?>">Blog</a>
       <a href="<?= e(url('admin/messages')) ?>" class="<?= $active === 'messages' ? 'is-active' : '' ?>">Messages</a>
       <?php if (is_super($ADMIN)): ?><a href="<?= e(url('admin/equipe')) ?>" class="<?= $active === 'equipe' ? 'is-active' : '' ?>">Équipe</a><?php endif; ?>
     </nav>
@@ -85,7 +86,7 @@ function admin_footer(): void
   <?php foreach (ADMIN_TABS as $k => [$label, $ic, $path]): ?>
     <a href="<?= e(url($path)) ?>" class="<?= $active === $k ? 'is-active' : '' ?>"><?= icon($ic) ?><?= e($label) ?></a>
   <?php endforeach; ?>
-  <button type="button" data-sheet-open class="<?= in_array($active, ['equipe', 'messages'], true) ? 'is-active' : '' ?>"><?= icon('more') ?>Plus</button>
+  <button type="button" data-sheet-open class="<?= in_array($active, ['equipe', 'messages', 'blog'], true) ? 'is-active' : '' ?>"><?= icon('more') ?>Plus</button>
 </nav>
 
 <div class="sheet-backdrop" data-sheet hidden>
@@ -95,6 +96,7 @@ function admin_footer(): void
       <button type="button" class="icon-btn" data-sheet-close aria-label="Fermer"><?= icon('x') ?></button>
     </div>
     <div class="sheet-grid">
+      <a class="sheet-item" href="<?= e(url('admin/blog')) ?>"><?= icon('book') ?>Blog</a>
       <a class="sheet-item" href="<?= e(url('admin/messages')) ?>"><?= icon('inbox') ?>Messages<?= $unread ? ' (' . (int) $unread . ')' : '' ?></a>
       <?php if (is_super($ADMIN)): ?><a class="sheet-item" href="<?= e(url('admin/equipe')) ?>"><?= icon('shield-check') ?>Équipe</a><?php endif; ?>
       <button type="button" class="sheet-item" data-theme-toggle><?= icon('moon') ?>Mode sombre</button>

@@ -55,3 +55,5 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/functions.php';
 require __DIR__ . '/icons.php';
 require __DIR__ . '/layout.php';
+
+ensure_schema();

@@ -22,11 +22,6 @@ const ORDER_STATUSES = [
     'annulee' => 'Annulée',
 ];
 
-const BLOG_POSTS = [
-    ['slug' => 'fonio', 'title' => 'Le fonio, céréale ancestrale aux mille vertus', 'date' => '4 novembre 2026', 'image' => 'cat-cereales.jpg', 'excerpt' => 'Riche en fibres et sans gluten, le fonio revient en force dans nos cuisines.'],
-    ['slug' => 'saloum', 'title' => 'À la rencontre des transformatrices du Saloum', 'date' => '21 octobre 2026', 'image' => 'terroir.jpg', 'excerpt' => 'Portrait des femmes qui font vivre le savoir-faire halieutique du Delta.'],
-    ['slug' => 'bissap', 'title' => 'Bissap, bouye, gingembre : nos jus naturels', 'date' => '8 octobre 2026', 'image' => 'cat-jus.jpg', 'excerpt' => 'Comment nous préparons nos boissons sans conservateur.'],
-];
 
 /* ---------------------------------------------------------------- Aides générales */
 
@@ -328,4 +323,131 @@ function load_order_items(array $orderIds): array
         $by[(int) $it['order_id']][] = $it;
     }
     return $by;
+}
+
+/* ---------------------------------------------------------------- Photos envoyées depuis l'admin */
+
+const MAX_UPLOAD = 5 * 1024 * 1024;
+
+/** Enregistre une photo envoyée dans uploads/<dossier> et renvoie son chemin relatif (ou null si aucun fichier). */
+function store_image_upload(array $file, string $subdir): ?string
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException("L'envoi de la photo a échoué (fichier trop lourd ?).");
+    }
+    if ($file['size'] > MAX_UPLOAD) {
+        throw new RuntimeException('La photo dépasse 5 Mo.');
+    }
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+    $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$mime] ?? null;
+    if (!$ext || @getimagesize($file['tmp_name']) === false) {
+        throw new RuntimeException('Format non accepté : utilisez une photo JPG, PNG ou WebP.');
+    }
+    $rel = 'uploads/' . $subdir;
+    $dir = APP_ROOT . '/' . $rel;
+    if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+        throw new RuntimeException("Le dossier d'images n'est pas accessible en écriture.");
+    }
+    $name = date('Ymd') . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
+    if (!move_uploaded_file($file['tmp_name'], "$dir/$name")) {
+        throw new RuntimeException("Impossible d'enregistrer la photo.");
+    }
+    return "$rel/$name";
+}
+
+/** Supprime une photo envoyée si plus aucun produit ni article ne l'utilise. */
+function delete_uploaded_image(?string $path): void
+{
+    if (!$path || !str_starts_with($path, 'uploads/') || str_contains($path, '..')) {
+        return;
+    }
+    $used = 0;
+    foreach (['products', 'posts'] as $table) {
+        $st = db()->prepare("SELECT COUNT(*) FROM $table WHERE image_url = ?");
+        $st->execute([$path]);
+        $used += (int) $st->fetchColumn();
+    }
+    if ($used === 0) {
+        @unlink(APP_ROOT . '/' . $path);
+    }
+}
+
+function media_url(?string $path, string $fallback = 'terroir.jpg'): string
+{
+    if (!$path) {
+        return img($fallback);
+    }
+    return preg_match('#^https?://#', $path) ? $path : url($path);
+}
+
+/* ---------------------------------------------------------------- Blog */
+
+/** @return array<int, array> */
+function get_posts(bool $publishedOnly = true, int $limit = 0): array
+{
+    $sql = 'SELECT * FROM posts' . ($publishedOnly ? ' WHERE is_published = 1 AND published_at <= UTC_TIMESTAMP()' : '')
+        . ' ORDER BY published_at DESC, id DESC' . ($limit > 0 ? ' LIMIT ' . $limit : '');
+    return db()->query($sql)->fetchAll();
+}
+
+function get_post_by_slug(string $slug): ?array
+{
+    $st = db()->prepare('SELECT * FROM posts WHERE slug = ? AND is_published = 1 AND published_at <= UTC_TIMESTAMP()');
+    $st->execute([$slug]);
+    return $st->fetch() ?: null;
+}
+
+function post_date(array $post): string
+{
+    $ts = strtotime($post['published_at'] . ' UTC');
+    return (int) date('j', $ts) . ' ' . FR_MONTHS[(int) date('n', $ts) - 1] . ' ' . date('Y', $ts);
+}
+
+/**
+ * Texte d'article → HTML sûr. Une ligne vide sépare les paragraphes,
+ * « ## Titre » crée un intertitre, « - élément » une liste, **texte** met en gras.
+ */
+function render_post_content(string $text): string
+{
+    $html = '';
+    foreach (preg_split('/\R{2,}/', trim($text)) ?: [] as $block) {
+        $lines = preg_split('/\R/', trim($block)) ?: [];
+        if (count($lines) === 1 && str_starts_with($lines[0], '## ')) {
+            $html .= '<h2>' . inline_md(substr($lines[0], 3)) . '</h2>';
+        } elseif ($lines && array_reduce($lines, fn($ok, $l) => $ok && preg_match('/^[-•]\s+/', $l), true)) {
+            $html .= '<ul>' . implode('', array_map(fn($l) => '<li>' . inline_md(preg_replace('/^[-•]\s+/', '', $l)) . '</li>', $lines)) . '</ul>';
+        } else {
+            $html .= '<p>' . implode('<br>', array_map('inline_md', $lines)) . '</p>';
+        }
+    }
+    return $html;
+}
+
+function inline_md(string $s): string
+{
+    return preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', e($s)) ?? e($s);
+}
+
+/** Crée les nouvelles tables sur un site déjà installé (mise à jour automatique). */
+function ensure_schema(): void
+{
+    $marker = __DIR__ . '/.schema-v2';
+    if (is_file($marker)) {
+        return;
+    }
+    $pdo = db();
+    $pdo->exec(file_get_contents(APP_ROOT . '/sql/posts.sql') ?: '');
+    if ((int) $pdo->query('SELECT COUNT(*) FROM posts')->fetchColumn() === 0) {
+        $sql = (string) file_get_contents(APP_ROOT . '/sql/posts-seed.sql');
+        $sql = preg_replace('/^\s*--.*$/m', '', $sql) ?? '';
+        foreach (preg_split('/;\s*(\r?\n|$)/', $sql) ?: [] as $stmt) {
+            if (trim($stmt) !== '') {
+                $pdo->exec($stmt);
+            }
+        }
+    }
+    @file_put_contents($marker, date('c'));
 }

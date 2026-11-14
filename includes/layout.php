@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+/** Signature du créateur du site (bas de page). Numéro WhatsApp au format international, sans + ni espaces. */
+const AGENCY_WHATSAPP = '';
+
 const NAV = [
     '' => 'Accueil',
     'boutique' => 'Boutique',
@@ -33,7 +36,7 @@ function page_header(array $o = []): void
   <meta property="og:title" content="<?= e($title) ?>">
   <meta property="og:description" content="<?= e($desc) ?>">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="<?= e(img('hero.jpg')) ?>">
+  <meta property="og:image" content="<?= e($o['image'] ?? img('hero.jpg')) ?>">
   <meta name="theme-color" content="#126333">
   <?php if (!empty($o['noindex'])): ?><meta name="robots" content="noindex"><?php endif; ?>
   <link rel="icon" type="image/png" href="<?= e(img('favicon.png')) ?>">
@@ -89,48 +92,77 @@ function page_footer(array $extraScripts = []): void
 {
     ?>
 </main>
+<?php $wa = preg_replace('/\D/', '', (string) cfg('whatsapp', cfg('contact_phone', ''))); ?>
+<section class="reassure" aria-label="Nos garanties">
+  <div class="container reassure-grid">
+    <div><span><?= icon('truck') ?></span><p><b>Livraison partout au Sénégal</b><small>Rapide et suivie</small></p></div>
+    <div><span><?= icon('banknote') ?></span><p><b>Paiement à la livraison</b><small>Ou Wave, Orange Money</small></p></div>
+    <div><span><?= icon('shield-check') ?></span><p><b>Inspection libre</b><small>Vérifiez avant de payer</small></p></div>
+    <div><span><?= icon('leaf') ?></span><p><b>100 % local</b><small>Transformé dans le Saloum</small></p></div>
+  </div>
+</section>
 <footer class="site-footer">
-  <div class="container footer-grid">
-    <div class="footer-about">
-      <?php logo_link('logo-lg') ?>
-      <p>AgroMina valorise et transforme les richesses agricoles, halieutiques et artisanales du Delta du Saloum.</p>
-      <div class="socials">
-        <a href="<?= e(cfg('facebook_url', '#')) ?>" aria-label="Facebook" target="_blank" rel="noopener"><?= icon('facebook') ?></a>
-        <a href="<?= e(cfg('instagram_url', '#')) ?>" aria-label="Instagram" target="_blank" rel="noopener"><?= icon('instagram') ?></a>
+  <svg class="footer-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 60V22c120 18 240 28 360 24S600 22 720 18s240 4 360 14 240 16 360 6v22Z"/></svg>
+  <div class="footer-main pattern-band">
+    <div class="container footer-grid">
+      <div class="footer-about">
+        <?php logo_link('logo-lg') ?>
+        <p>AgroMina valorise et transforme les richesses agricoles, halieutiques et artisanales du Delta du Saloum, avec les producteurs et les femmes transformatrices de la région.</p>
+        <?php if ($wa): ?>
+          <a class="wa-btn" href="https://wa.me/<?= e($wa) ?>?text=<?= rawurlencode('Bonjour AgroMina, je souhaite passer une commande.') ?>" target="_blank" rel="noopener"><?= icon('message') ?> Commander sur WhatsApp</a>
+        <?php endif; ?>
+        <div class="socials">
+          <a href="<?= e(cfg('facebook_url', '#')) ?>" aria-label="Facebook" target="_blank" rel="noopener"><?= icon('facebook') ?></a>
+          <a href="<?= e(cfg('instagram_url', '#')) ?>" aria-label="Instagram" target="_blank" rel="noopener"><?= icon('instagram') ?></a>
+          <?php if ($wa): ?><a href="https://wa.me/<?= e($wa) ?>" aria-label="WhatsApp" target="_blank" rel="noopener"><?= icon('message') ?></a><?php endif; ?>
+          <a href="mailto:<?= e(cfg('contact_email', 'contact@agromina.sn')) ?>" aria-label="E-mail"><?= icon('mail') ?></a>
+        </div>
       </div>
-    </div>
-    <div>
-      <h4>Liens rapides</h4>
-      <ul>
-        <li><a href="<?= e(url('boutique')) ?>">Boutique</a></li>
-        <li><a href="<?= e(url('engagements')) ?>">Nos engagements</a></li>
-        <li><a href="<?= e(url('a-propos')) ?>">À propos</a></li>
-        <li><a href="<?= e(url('blog')) ?>">Blog</a></li>
-        <li><a href="<?= e(url('suivi')) ?>">Suivre ma commande</a></li>
-        <li><a href="<?= e(url('contact')) ?>">Contact</a></li>
-      </ul>
-    </div>
-    <div>
-      <h4>Catégories</h4>
-      <ul>
-        <?php foreach (CATEGORIES as $slug => $c): ?>
-          <li><a href="<?= e(url('boutique', ['cat' => $slug])) ?>"><?= e($c['name']) ?></a></li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
-    <div>
-      <h4>Contact</h4>
-      <ul class="contact-list">
-        <li><?= icon('map-pin') ?><?= e(cfg('contact_address', 'Delta du Saloum, Sénégal')) ?></li>
-        <li><?= icon('phone') ?><?= e(cfg('contact_phone', '+221 00 000 00 00')) ?></li>
-        <li><?= icon('mail') ?><?= e(cfg('contact_email', 'contact@agromina.sn')) ?></li>
-      </ul>
+      <div class="footer-col">
+        <h4>La boutique</h4>
+        <ul>
+          <li><a href="<?= e(url('boutique')) ?>">Tous les produits</a></li>
+          <li><a href="<?= e(url('boutique', ['promo' => 1])) ?>">Promotions</a></li>
+          <li><a href="<?= e(url('boutique', ['nouveau' => 1])) ?>">Nouveautés</a></li>
+          <li><a href="<?= e(url('favoris')) ?>">Mes favoris</a></li>
+          <li><a href="<?= e(url('suivi')) ?>">Suivre ma commande</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Catégories</h4>
+        <ul>
+          <?php foreach (CATEGORIES as $slug => $c): ?>
+            <li><a href="<?= e(url('boutique', ['cat' => $slug])) ?>"><?= e($c['name']) ?></a></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Nous contacter</h4>
+        <ul class="contact-list">
+          <li><span><?= icon('map-pin') ?></span><?= e(cfg('contact_address', 'Delta du Saloum, Sénégal')) ?></li>
+          <li><span><?= icon('phone') ?></span><a href="tel:<?= e(preg_replace('/[^\d+]/', '', (string) cfg('contact_phone', ''))) ?>"><?= e(cfg('contact_phone', '+221 00 000 00 00')) ?></a></li>
+          <li><span><?= icon('mail') ?></span><a href="mailto:<?= e(cfg('contact_email', 'contact@agromina.sn')) ?>"><?= e(cfg('contact_email', 'contact@agromina.sn')) ?></a></li>
+        </ul>
+        <h4 class="pay-title">Moyens de paiement</h4>
+        <div class="pay-badges"><span>Espèces</span><span>Wave</span><span>Orange Money</span></div>
+      </div>
     </div>
   </div>
   <div class="footer-bottom">
     <div class="container footer-bottom-row">
-      <span>© <?= date('Y') ?> AgroMina. Tous droits réservés.</span>
-      <span class="legal"><a href="<?= e(url('cgv')) ?>">Conditions générales de vente</a><a href="<?= e(url('confidentialite')) ?>">Politique de confidentialité</a></span>
+      <span>© <?= date('Y') ?> AgroMina · Fait avec <?= icon('heart', 'ic heart') ?> par
+        <?php $agencyWa = preg_replace('/\D/', '', AGENCY_WHATSAPP); ?>
+        <?php if ($agencyWa): ?>
+          <a class="agency" href="https://wa.me/<?= e($agencyWa) ?>?text=<?= rawurlencode("Bonjour Pixel Agency, j'ai vu le site AgroMina et je voudrais un site web.") ?>" target="_blank" rel="noopener">Pixel Agency</a>
+        <?php else: ?><b class="agency">Pixel Agency</b><?php endif; ?>
+      </span>
+      <span class="legal">
+        <a href="<?= e(url('a-propos')) ?>">À propos</a>
+        <a href="<?= e(url('engagements')) ?>">Nos engagements</a>
+        <a href="<?= e(url('cgv')) ?>">CGV</a>
+        <a href="<?= e(url('confidentialite')) ?>">Confidentialité</a>
+        <a href="<?= e(url('contact')) ?>">Contact</a>
+      </span>
     </div>
   </div>
 </footer>

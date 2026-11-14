@@ -16,6 +16,9 @@ ErrorDocument 404 /404.php
   # Fiche produit : /produit/thiakry-mil
   RewriteRule ^produit/([A-Za-z0-9-]+)/?$ produit.php?slug=$1 [L,QSA]
 
+  # Article du blog : /blog/le-fonio
+  RewriteRule ^blog/([A-Za-z0-9-]+)/?$ article.php?slug=$1 [L,QSA]
+
   # /admin -> /admin/
   RewriteRule ^admin$ admin/ [L,R=301]
 

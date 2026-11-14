@@ -1,48 +1,6 @@
 <?php
 require __DIR__ . '/_layout.php';
 
-const UPLOAD_DIR = 'uploads/products';
-const MAX_UPLOAD = 5 * 1024 * 1024;
-
-/** Enregistre une photo envoyée et renvoie son chemin relatif, ou lève une erreur lisible. */
-function store_upload(array $file): ?string
-{
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-        return null;
-    }
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        throw new RuntimeException("L'envoi de la photo a échoué (fichier trop lourd ?).");
-    }
-    if ($file['size'] > MAX_UPLOAD) {
-        throw new RuntimeException('La photo dépasse 5 Mo.');
-    }
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
-    $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$mime] ?? null;
-    if (!$ext || @getimagesize($file['tmp_name']) === false) {
-        throw new RuntimeException('Format non accepté : utilisez une photo JPG, PNG ou WebP.');
-    }
-    $dir = APP_ROOT . '/' . UPLOAD_DIR;
-    if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
-        throw new RuntimeException("Le dossier d'images n'est pas accessible en écriture.");
-    }
-    $name = date('Ymd') . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
-    if (!move_uploaded_file($file['tmp_name'], "$dir/$name")) {
-        throw new RuntimeException("Impossible d'enregistrer la photo.");
-    }
-    return UPLOAD_DIR . '/' . $name;
-}
-
-function delete_local_image(?string $path): void
-{
-    if ($path && str_starts_with($path, UPLOAD_DIR . '/') && !str_contains($path, '..')) {
-        $count = db()->prepare('SELECT COUNT(*) FROM products WHERE image_url = ?');
-        $count->execute([$path]);
-        if ((int) $count->fetchColumn() === 0) {
-            @unlink(APP_ROOT . '/' . $path);
-        }
-    }
-}
-
 function find_product(int $id): ?array
 {
     $st = db()->prepare('SELECT * FROM products WHERE id = ?');
@@ -78,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'delete' && ($p = find_product($id))) {
         $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$id]);
-        delete_local_image($p['image_url']);
+        delete_uploaded_image($p['image_url']);
         flash('success', 'Produit supprimé');
         redirect(url('admin/produits'));
     }
@@ -116,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$formError) {
             try {
-                $uploaded = store_upload($_FILES['image'] ?? []);
+                $uploaded = store_image_upload($_FILES['image'] ?? [], 'products');
                 if ($uploaded) {
                     $image = $uploaded;
                 } elseif (!empty($_POST['remove_image'])) {
@@ -133,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($existing) {
                 $pdo->prepare('UPDATE products SET slug=?, name=?, category=?, price=?, old_price=?, stock=?, weight=?, description=?, is_new=?, best_seller=?, is_active=?, image_url=? WHERE id=?')
                     ->execute([...$vals, $id]);
-                if ($existing['image_url'] !== $image) delete_local_image($existing['image_url']);
+                if ($existing['image_url'] !== $image) delete_uploaded_image($existing['image_url']);
             } else {
                 $pdo->prepare('INSERT INTO products (slug, name, category, price, old_price, stock, weight, description, is_new, best_seller, is_active, image_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
                     ->execute($vals);

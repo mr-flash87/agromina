@@ -21,8 +21,10 @@ sans Supabase et sans abonnement Lovable**.
   (une commande **annulée remet son stock** en boutique)
 - Produits : ajout, modification, **envoi de photo**, duplication, suppression, publier ou masquer, stock, ventes
 - Clients : fiches créées automatiquement à chaque commande (identifiées par le téléphone)
+- Blog : écrire, modifier, illustrer d'une photo, publier, programmer ou garder en brouillon des articles
 - Messages : formulaire de contact et inscrits à la newsletter (export CSV)
 - Équipe (super admin) : ajouter des gérants ou des super admins, réinitialiser un mot de passe, retirer un accès
+- Application installable sur téléphone (« AgroMina Admin ») avec écran d'ouverture et mode hors ligne
 - Mode sombre, interface mobile avec barre de navigation en bas
 
 Les 14 produits du site Lovable sont importés automatiquement à l'installation.
@@ -73,7 +75,10 @@ Tout se modifie dans `includes/config.php` (Gestionnaire de fichiers → clic dr
 | `debug` | `true` uniquement pour afficher les erreurs PHP pendant un dépannage |
 
 Les textes des pages (À propos, Engagements, CGV, Confidentialité) sont dans les fichiers `.php` du même nom.
-Les articles du blog et les catégories sont définis en haut de `includes/functions.php`.
+Les articles du blog se gèrent dans l'admin (menu **Blog**). Les catégories sont définies en haut de `includes/functions.php`.
+
+**Mise en forme des articles :** une ligne vide entre deux paragraphes, `## Intertitre` pour un sous-titre,
+`- élément` pour une liste, `**texte**` pour du gras.
 
 ## Organisation des fichiers
 
