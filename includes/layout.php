@@ -27,7 +27,7 @@ function page_header(array $o = []): void
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title><?= e($title) ?></title>
   <meta name="description" content="<?= e($desc) ?>">
   <meta property="og:title" content="<?= e($title) ?>">

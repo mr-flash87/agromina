@@ -4,3 +4,4 @@ includes/install.lock
 # Photos envoyées depuis l'admin
 uploads/products/*
 !uploads/products/.gitkeep
+includes/sessions/

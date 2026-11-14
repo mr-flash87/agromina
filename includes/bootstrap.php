@@ -29,9 +29,17 @@ if (!empty($CONFIG['debug'])) {
 
 $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
     || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+// Session de 30 jours, stockée dans un dossier propre au site (l'appli admin reste connectée).
+$sessionTtl = 30 * 24 * 3600;
+$sessionDir = __DIR__ . '/sessions';
+if ((is_dir($sessionDir) || @mkdir($sessionDir, 0700)) && is_writable($sessionDir)) {
+    session_save_path($sessionDir);
+}
+ini_set('session.gc_maxlifetime', (string) $sessionTtl);
+ini_set('session.use_strict_mode', '1');
 session_name('agromina');
 session_set_cookie_params([
-    'lifetime' => 0,
+    'lifetime' => $sessionTtl,
     'path' => '/',
     'httponly' => true,
     'samesite' => 'Lax',

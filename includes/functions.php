@@ -182,10 +182,10 @@ function json_out(array $data, int $status = 200): never
 
 /* ---------------------------------------------------------------- Comptes */
 
-function current_user(): ?array
+function current_user(bool $refresh = false): ?array
 {
     static $user = false;
-    if ($user !== false) {
+    if ($user !== false && !$refresh) {
         return $user;
     }
     $id = $_SESSION['user_id'] ?? null;
@@ -217,6 +217,7 @@ function login_user(int $id): void
 {
     session_regenerate_id(true);
     $_SESSION['user_id'] = $id;
+    current_user(true);
 }
 
 function logout_user(): void

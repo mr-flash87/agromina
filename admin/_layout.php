@@ -23,13 +23,19 @@ function admin_header(string $title, string $active): void
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title><?= e($title) ?> – AgroMina Admin</title>
   <meta name="robots" content="noindex">
+  <meta name="description" content="Gestion de la boutique AgroMina : commandes, produits, clients et équipe.">
   <meta name="theme-color" content="#126333">
-  <link rel="icon" type="image/png" href="<?= e(img('favicon.png')) ?>">
-  <link rel="apple-touch-icon" href="<?= e(img('admin-icon-180.png')) ?>">
-  <link rel="manifest" href="<?= e(url('admin/manifest.webmanifest')) ?>">
+  <meta name="application-name" content="AgroMina Admin">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AgroMina Admin">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="<?= e(url('admin/manifest.php')) ?>">
+  <link rel="icon" type="image/png" sizes="192x192" href="<?= e(img('admin-icon-192.png')) ?>">
+  <link rel="apple-touch-icon" sizes="180x180" href="<?= e(img('admin-icon-180.png')) ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -37,6 +43,10 @@ function admin_header(string $title, string $active): void
   <link rel="stylesheet" href="<?= e(asset('css/style.css')) ?>">
 </head>
 <body class="admin-body">
+<div class="splash" data-splash aria-hidden="true">
+  <div class="splash-inner"><img src="<?= e(img('logo.jpeg')) ?>" alt=""><div class="splash-bar"><i></i></div></div>
+</div>
+<script>try { if (sessionStorage.getItem("am-splash")) document.querySelector("[data-splash]").remove(); } catch (e) {}</script>
 <header class="a-top">
   <div class="a-top-row">
     <a href="<?= e(url('admin/')) ?>" class="a-brand"><img src="<?= e(img('logo.jpeg')) ?>" alt="AgroMina"><span>Admin</span></a>
@@ -54,6 +64,7 @@ function admin_header(string $title, string $active): void
     </div>
   </div>
 </header>
+<div class="offline-bar" data-offline hidden><?= icon('alert') ?> Hors ligne : affichage des dernières données enregistrées. Les modifications reprendront au retour d'Internet.</div>
 <?php foreach (take_flashes() as $f): ?>
   <div class="flash flash-<?= e($f['type']) ?>" data-flash><?= e($f['message']) ?></div>
 <?php endforeach; ?>
@@ -90,6 +101,8 @@ function admin_footer(): void
       <a class="sheet-item" href="<?= e(url('')) ?>" target="_blank"><?= icon('store') ?>Voir la boutique</a>
       <a class="sheet-item" href="<?= e(url('compte')) ?>"><?= icon('user') ?>Mon compte</a>
     </div>
+    <button type="button" class="btn btn-install" data-install><?= icon('arrow-right') ?> Installer l'application</button>
+    <p class="install-help" data-install-help hidden></p>
     <form method="post" action="<?= e(url('deconnexion')) ?>">
       <?= csrf_field() ?>
       <button class="btn btn-danger"><?= icon('log-out') ?> Se déconnecter</button>
@@ -113,6 +126,55 @@ function admin_footer(): void
   });
   document.querySelectorAll("[data-autosubmit]").forEach(function (el) { el.addEventListener("change", function () { el.form.submit(); }); });
   document.querySelectorAll("[data-flash]").forEach(function (f) { setTimeout(function () { f.remove(); }, 5000); });
+
+  // Écran d'ouverture (une fois par session, comme sur la version Lovable)
+  var splash = document.querySelector("[data-splash]");
+  if (splash) {
+    try { sessionStorage.setItem("am-splash", "1"); } catch (e) {}
+    setTimeout(function () { splash.classList.add("is-hiding"); }, 1400);
+    setTimeout(function () { splash.remove(); }, 1900);
+  }
+
+  // Bandeau hors ligne
+  var off = document.querySelector("[data-offline]");
+  function net() {
+    if (!navigator.onLine) { off.hidden = false; return; }
+    // Certains téléphones se disent « en ligne » sans l'être : on vérifie vraiment.
+    fetch(<?= json_encode(url('admin/manifest.php')) ?>, { method: "HEAD", cache: "no-store" })
+      .then(function () { off.hidden = true; }, function () { off.hidden = false; });
+  }
+  window.addEventListener("online", net); window.addEventListener("offline", net); net();
+
+  // Service worker : l'admin s'installe et s'ouvre même sans réseau
+  if ("serviceWorker" in navigator && window.self === window.top) {
+    navigator.serviceWorker.register(<?= json_encode(url('sw.js')) ?>, { scope: <?= json_encode(url('')) ?> }).catch(function () {});
+    var warm = function () {
+      if (!navigator.onLine) return;
+      navigator.serviceWorker.ready.then(function (reg) {
+        if (reg.active) reg.active.postMessage({ type: "warm", urls: <?= json_encode(array_map(fn($k) => url(ADMIN_TABS[$k][2]), array_keys(ADMIN_TABS)), JSON_UNESCAPED_SLASHES) ?> });
+      });
+    };
+    setTimeout(warm, 2500);
+  }
+
+  // Installation de l'application
+  var installBtn = document.querySelector("[data-install]");
+  var help = document.querySelector("[data-install-help]");
+  var deferred = null;
+  var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  if (standalone) installBtn.hidden = true;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); deferred = e; });
+  window.addEventListener("appinstalled", function () { installBtn.hidden = true; help.hidden = true; deferred = null; });
+  installBtn.addEventListener("click", function () {
+    if (deferred) { deferred.prompt(); deferred.userChoice.finally(function () { deferred = null; }); return; }
+    var ua = navigator.userAgent;
+    help.textContent = /iPhone|iPad|iPod/.test(ua)
+      ? "Sur iPhone/iPad : ouvrez cette page dans Safari, touchez le bouton Partager puis « Sur l'écran d'accueil »."
+      : /Android/.test(ua)
+        ? "Sur Android : ouvrez le menu ⋮ de Chrome puis « Installer l'application » ou « Ajouter à l'écran d'accueil »."
+        : "Sur ordinateur : dans Chrome ou Edge, cliquez sur l'icône d'installation à droite de la barre d'adresse, ou menu ⋮ → « Installer AgroMina Admin ».";
+    help.hidden = false;
+  });
 })();
 </script>
 </body>
