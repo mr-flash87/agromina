@@ -3,7 +3,7 @@ require __DIR__ . '/includes/bootstrap.php';
 
 $q = str_input('q', 100, $_GET);
 $cat = str_input('cat', 40, $_GET);
-$cat = isset(CATEGORIES[$cat]) ? $cat : '';
+$cat = isset(categories()[$cat]) ? $cat : '';
 $flag = static fn(string $k) => !empty($_GET[$k]) && $_GET[$k] !== '0';
 $promo = $flag('promo');
 $nouveau = $flag('nouveau');
@@ -69,8 +69,8 @@ page_header([
   <div class="container">
     <div class="cat-chips" role="radiogroup" aria-label="Catégories">
       <label class="cat-chip<?= $cat === '' ? ' is-active' : '' ?>"><input type="radio" name="cat" value="" <?= $cat === '' ? 'checked' : '' ?>><span class="cat-chip-all"><?= icon('store') ?></span>Tout <small><?= $total ?></small></label>
-      <?php foreach (CATEGORIES as $slug => $c): ?>
-        <label class="cat-chip<?= $cat === $slug ? ' is-active' : '' ?>"><input type="radio" name="cat" value="<?= e($slug) ?>" <?= $cat === $slug ? 'checked' : '' ?>><img src="<?= e(img($c['image'])) ?>" alt="" loading="lazy"><?= e($c['short']) ?> <small><?= $counts[$slug] ?? 0 ?></small></label>
+      <?php foreach (categories() as $slug => $c): ?>
+        <label class="cat-chip<?= $cat === $slug ? ' is-active' : '' ?>"><input type="radio" name="cat" value="<?= e($slug) ?>" <?= $cat === $slug ? 'checked' : '' ?>><img src="<?= e(media_url($c['image'])) ?>" alt="" loading="lazy"><?= e($c['short']) ?> <small><?= $counts[$slug] ?? 0 ?></small></label>
       <?php endforeach; ?>
     </div>
     <div class="shop-tools">
@@ -107,11 +107,11 @@ page_header([
     <a href="<?= e(url('boutique')) ?>" class="reset-link" data-reset <?= $hasFilter ? '' : 'hidden' ?>><?= icon('x') ?> Effacer les filtres</a>
   </div>
 
-  <?php foreach (CATEGORIES as $slug => $c): $items = $byCat[$slug] ?? []; if (!$items) continue;
+  <?php foreach (categories() as $slug => $c): $items = $byCat[$slug] ?? []; if (!$items) continue;
       $n = count(array_filter($items, $visible)); ?>
     <section class="shop-section" data-section="<?= e($slug) ?>" <?= $n ? '' : 'hidden' ?>>
       <header class="shop-section-head">
-        <img src="<?= e(img($c['image'])) ?>" alt="" loading="lazy">
+        <img src="<?= e(media_url($c['image'])) ?>" alt="" loading="lazy">
         <div><h2><?= e($c['name']) ?></h2><p><span data-section-count><?= $n ?></span> produit<?= $n > 1 ? 's' : '' ?></p></div>
       </header>
       <div class="grid-products shop-grid">

@@ -45,8 +45,8 @@ page_hero('À propos', 'AgroMina, la transformation des produits locaux du Delta
 <section class="container section">
   <div class="section-head"><h2 class="section-title">Nos familles de produits</h2><a class="see-all" href="<?= e(url('categories')) ?>">Tout voir <?= icon('arrow-right') ?></a></div>
   <div class="about-cats">
-    <?php foreach (CATEGORIES as $slug => $c): ?>
-      <a class="about-cat" href="<?= e(url('boutique', ['cat' => $slug])) ?>"><img src="<?= e(img($c['image'])) ?>" alt="" loading="lazy"><span><?= e($c['name']) ?></span></a>
+    <?php foreach (categories() as $slug => $c): ?>
+      <a class="about-cat" href="<?= e(url('boutique', ['cat' => $slug])) ?>"><img src="<?= e(media_url($c['image'])) ?>" alt="" loading="lazy"><span><?= e($c['name']) ?></span></a>
     <?php endforeach; ?>
   </div>
 </section>

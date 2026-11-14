@@ -21,6 +21,7 @@ sans Supabase et sans abonnement Lovable**.
   (une commande **annulée remet son stock** en boutique)
 - Produits : ajout, modification, **envoi de photo**, duplication, suppression, publier ou masquer, stock, ventes
 - Clients : fiches créées automatiquement à chaque commande (identifiées par le téléphone)
+- Catégories : créer, renommer, illustrer d'une photo, réordonner ou supprimer (les produits sont déplacés)
 - Promotions : créer ses offres (remise en %, dates de début et de fin, produits choisis), les prix
   remisés s'appliquent partout, y compris au panier ; choix de la promo affichée sur l'accueil
 - Notifications : alerte sur le téléphone ou l'ordinateur à chaque nouvelle commande
@@ -88,7 +89,7 @@ Tout se modifie dans `includes/config.php` (Gestionnaire de fichiers → clic dr
 | `debug` | `true` uniquement pour afficher les erreurs PHP pendant un dépannage |
 
 Les textes des pages (À propos, Engagements, CGV, Confidentialité) sont dans les fichiers `.php` du même nom.
-Les articles du blog se gèrent dans l'admin (menu **Blog**). Les catégories sont définies en haut de `includes/functions.php`.
+Les articles du blog (menu **Blog**) et les catégories (menu **Catégories**) se gèrent dans l'admin.
 
 **Mise en forme des articles :** une ligne vide entre deux paragraphes, `## Intertitre` pour un sous-titre,
 `- élément` pour une liste, `**texte**` pour du gras.

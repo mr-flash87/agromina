@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (mb_strlen($name) < 2) $formError = 'Nom trop court.';
         elseif (strlen($slug) < 2) $formError = 'Le slug est trop court.';
-        elseif (!isset(CATEGORIES[$category])) $formError = 'Catégorie invalide.';
+        elseif (!isset(categories()[$category])) $formError = 'Catégorie invalide.';
         elseif ($price < 0 || $price > 100_000_000) $formError = 'Prix invalide.';
         elseif ($oldPrice !== null && ($oldPrice < 0 || $oldPrice > 100_000_000)) $formError = 'Prix barré invalide.';
         elseif ($stock < 0 || $stock > 1_000_000) $formError = 'Stock invalide.';
@@ -107,7 +107,9 @@ if (!$draft) {
     if (isset($_GET['edit']) && ($p = find_product((int) $_GET['edit']))) {
         $draft = $p;
     } elseif (isset($_GET['nouveau'])) {
-        $draft = ['id' => null, 'name' => '', 'slug' => '', 'category' => 'cereales', 'price' => '', 'old_price' => null, 'stock' => 0,
+        $firstCat = array_key_first(categories()) ?? '';
+        $askCat = str_input('cat', 40, $_GET);
+        $draft = ['id' => null, 'name' => '', 'slug' => '', 'category' => isset(categories()[$askCat]) ? $askCat : $firstCat, 'price' => '', 'old_price' => null, 'stock' => 0,
             'weight' => '', 'description' => '', 'is_new' => false, 'best_seller' => false, 'is_active' => true, 'image_url' => null];
     }
 }
@@ -142,9 +144,9 @@ if ($draft): $isEdit = !empty($draft['id']); ?>
     <div class="pform-grid">
       <label class="label"><span>Nom</span><input class="field" name="name" required maxlength="120" value="<?= e($draft['name']) ?>" data-name></label>
       <label class="label"><span>Slug (adresse de la page)</span><input class="field" name="slug" maxlength="80" value="<?= e($draft['slug']) ?>" data-slug<?= $isEdit ? '' : ' data-auto' ?>><small>ex. thiakry-mil — laissé vide, il est créé à partir du nom</small></label>
-      <label class="label"><span>Catégorie</span>
+      <label class="label"><span>Catégorie · <a href="<?= e(url('admin/categories', ['nouveau' => 1])) ?>" style="color:var(--primary);text-decoration:underline">créer une catégorie</a></span>
         <select class="select" name="category">
-          <?php foreach (CATEGORIES as $slug => $c): ?><option value="<?= e($slug) ?>" <?= $draft['category'] === $slug ? 'selected' : '' ?>><?= e($c['name']) ?></option><?php endforeach; ?>
+          <?php foreach (categories() as $slug => $c): ?><option value="<?= e($slug) ?>" <?= $draft['category'] === $slug ? 'selected' : '' ?>><?= e($c['name']) ?></option><?php endforeach; ?>
         </select>
       </label>
       <label class="label"><span>Poids / conditionnement</span><input class="field" name="weight" maxlength="40" placeholder="500 g" value="<?= e($draft['weight']) ?>"></label>

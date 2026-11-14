@@ -3,14 +3,6 @@ declare(strict_types=1);
 
 /* ---------------------------------------------------------------- Constantes boutique */
 
-const CATEGORIES = [
-    'cereales' => ['short' => 'Céréales', 'name' => 'Céréales locales transformées', 'image' => 'cat-cereales.jpg'],
-    'jus' => ['short' => 'Jus & boissons', 'name' => 'Jus et boissons naturelles', 'image' => 'cat-jus.jpg'],
-    'fruits-legumes' => ['short' => 'Fruits & légumes', 'name' => 'Fruits et légumes transformés', 'image' => 'cat-fruits.jpg'],
-    'halieutiques' => ['short' => 'Produits de la mer', 'name' => 'Produits halieutiques', 'image' => 'cat-halieutiques.jpg'],
-    'artisanaux' => ['short' => 'Artisanat', 'name' => 'Produits traditionnels et artisanaux', 'image' => 'cat-artisanaux.jpg'],
-    'autres' => ['short' => 'Autres', 'name' => 'Autres produits locaux', 'image' => 'cat-autres.jpg'],
-];
 
 const PAYMENT_METHODS = ['Paiement à la livraison', 'Wave', 'Orange Money'];
 
@@ -276,9 +268,33 @@ function safe_next(?string $next, string $fallback): string
 
 /* ---------------------------------------------------------------- Catalogue */
 
+/**
+ * Catégories créées dans l'admin, dans l'ordre choisi.
+ * @return array<string, array{id:int, slug:string, name:string, short:string, description:string, image:string}>
+ */
+function categories(bool $refresh = false): array
+{
+    static $cache = null;
+    if ($cache !== null && !$refresh) {
+        return $cache;
+    }
+    $cache = [];
+    foreach (db()->query('SELECT * FROM categories ORDER BY position, name') as $r) {
+        $cache[$r['slug']] = [
+            'id' => (int) $r['id'],
+            'slug' => $r['slug'],
+            'name' => $r['name'],
+            'short' => $r['short_name'] !== '' ? $r['short_name'] : $r['name'],
+            'description' => $r['description'],
+            'image' => $r['image_url'] ?: 'assets/img/cat-autres.jpg',
+        ];
+    }
+    return $cache;
+}
+
 function category_of(string $slug): array
 {
-    return CATEGORIES[$slug] ?? CATEGORIES['autres'];
+    return categories()[$slug] ?? ['id' => 0, 'slug' => $slug, 'name' => 'Autres produits', 'short' => 'Autres', 'description' => '', 'image' => 'assets/img/cat-autres.jpg'];
 }
 
 function product_image(array $p): string
@@ -286,7 +302,7 @@ function product_image(array $p): string
     if (!empty($p['image_url'])) {
         return preg_match('#^https?://#', $p['image_url']) ? $p['image_url'] : url($p['image_url']);
     }
-    return img(category_of($p['category'])['image']);
+    return media_url(category_of($p['category'])['image']);
 }
 
 function normalize_product(array $r): array
@@ -472,7 +488,7 @@ function delete_uploaded_image(?string $path): void
         return;
     }
     $used = 0;
-    foreach (['products', 'posts'] as $table) {
+    foreach (['products', 'posts', 'categories'] as $table) {
         $st = db()->prepare("SELECT COUNT(*) FROM $table WHERE image_url = ?");
         $st->execute([$path]);
         $used += (int) $st->fetchColumn();
@@ -544,6 +560,7 @@ function ensure_schema(): void
     $steps = [
         'v2' => ['posts.sql', 'posts-seed.sql'],
         'v3' => ['promotions.sql', 'promotions-seed.sql'],
+        'v4' => ['categories.sql', 'categories-seed.sql'],
     ];
     foreach ($steps as $version => $files) {
         $marker = __DIR__ . '/.schema-' . $version;

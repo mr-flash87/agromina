@@ -10,3 +10,6 @@ uploads/blog/*
 includes/.schema-v2
 includes/vapid.json
 includes/.schema-v3
+includes/.schema-v4
+uploads/categories/*
+!uploads/categories/.gitkeep

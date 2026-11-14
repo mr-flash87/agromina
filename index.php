@@ -28,9 +28,9 @@ page_header(['active' => '']);
 <section class="container section">
   <div class="section-head"><h2 class="section-title">Nos catégories</h2><a class="see-all" href="<?= e(url('boutique')) ?>">Tout voir <?= icon('arrow-right') ?></a></div>
   <div class="cat-tiles">
-    <?php foreach (CATEGORIES as $slug => $c): ?>
+    <?php foreach (categories() as $slug => $c): ?>
       <a class="cat-tile" href="<?= e(url('boutique', ['cat' => $slug])) ?>">
-        <img src="<?= e(img($c['image'])) ?>" alt="<?= e($c['name']) ?>" loading="lazy">
+        <img src="<?= e(media_url($c['image'])) ?>" alt="<?= e($c['name']) ?>" loading="lazy">
         <span><?= e($c['name']) ?></span>
       </a>
     <?php endforeach; ?>

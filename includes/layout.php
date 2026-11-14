@@ -127,7 +127,7 @@ function page_footer(array $extraScripts = []): void
       <div class="footer-col">
         <h4>Catégories</h4>
         <ul>
-          <?php foreach (CATEGORIES as $slug => $c): ?>
+          <?php foreach (categories() as $slug => $c): ?>
             <li><a href="<?= e(url('boutique', ['cat' => $slug])) ?>"><?= e($c['name']) ?></a></li>
           <?php endforeach; ?>
         </ul>
