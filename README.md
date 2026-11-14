@@ -21,6 +21,9 @@ sans Supabase et sans abonnement Lovable**.
   (une commande **annulée remet son stock** en boutique)
 - Produits : ajout, modification, **envoi de photo**, duplication, suppression, publier ou masquer, stock, ventes
 - Clients : fiches créées automatiquement à chaque commande (identifiées par le téléphone)
+- Promotions : créer ses offres (remise en %, dates de début et de fin, produits choisis), les prix
+  remisés s'appliquent partout, y compris au panier ; choix de la promo affichée sur l'accueil
+- Notifications : alerte sur le téléphone ou l'ordinateur à chaque nouvelle commande
 - Blog : écrire, modifier, illustrer d'une photo, publier, programmer ou garder en brouillon des articles
 - Messages : formulaire de contact et inscrits à la newsletter (export CSV)
 - Équipe (super admin) : ajouter des gérants ou des super admins, réinitialiser un mot de passe, retirer un accès
@@ -60,6 +63,16 @@ devant les deux lignes « Forcer HTTPS ».
 ### 5. C'est en ligne
 - Boutique : `https://votre-domaine.com/`
 - Admin : `https://votre-domaine.com/admin` (page de connexion propre à l'admin)
+
+## Notifications de commande
+
+Dans l'admin, menu **Plus** (ou bandeau du tableau de bord), puis **Activer**, et autorisez les notifications.
+- Le site doit être en **https** (certificat SSL actif).
+- **Android / ordinateur** : fonctionne dans Chrome, Edge ou Firefox, même navigateur fermé (selon le téléphone).
+- **iPhone / iPad** : iOS 16.4 minimum, et il faut d'abord **installer l'application** (Partager → Sur l'écran
+  d'accueil), puis activer les notifications depuis l'application installée.
+- Le bouton **Tester** envoie une notification d'essai sur l'appareil.
+- Chaque appareil doit être activé une fois (téléphone du gérant, ordinateur du bureau…).
 
 ## Réglages utiles
 

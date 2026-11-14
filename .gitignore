@@ -8,3 +8,5 @@ includes/sessions/
 uploads/blog/*
 !uploads/blog/.gitkeep
 includes/.schema-v2
+includes/vapid.json
+includes/.schema-v3

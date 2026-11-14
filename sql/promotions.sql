@@ -1,0 +1,40 @@
+CREATE TABLE IF NOT EXISTS promotions (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  badge VARCHAR(40) NOT NULL DEFAULT 'OFFRES SPÉCIALES',
+  title VARCHAR(160) NOT NULL DEFAULT '',
+  description VARCHAR(400) NOT NULL DEFAULT '',
+  discount_percent TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  starts_at DATETIME NULL DEFAULT NULL,
+  ends_at DATETIME NULL DEFAULT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  show_on_home TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS promotion_products (
+  promotion_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  position SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (promotion_id, product_id),
+  KEY promotion_products_product_idx (product_id),
+  CONSTRAINT promotion_products_promo_fk FOREIGN KEY (promotion_id) REFERENCES promotions (id) ON DELETE CASCADE,
+  CONSTRAINT promotion_products_product_fk FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  endpoint VARCHAR(700) NOT NULL,
+  endpoint_hash CHAR(64) NOT NULL,
+  p256dh VARCHAR(200) NOT NULL,
+  auth VARCHAR(100) NOT NULL,
+  user_agent VARCHAR(255) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY push_endpoint_unique (endpoint_hash),
+  KEY push_user_idx (user_id),
+  CONSTRAINT push_user_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

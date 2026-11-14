@@ -76,7 +76,9 @@ function page_header(array $o = []): void
       <?php foreach (NAV as $path => $label): ?>
         <a href="<?= e(url($path)) ?>" class="<?= $active === $path ? 'is-active' : '' ?>"><?= e($label) ?></a>
       <?php endforeach; ?>
-      <span class="promo-hint"><b>PROMOS</b> jusqu'à −20 % cette semaine</span>
+      <?php $bestPct = best_discount_now(); if ($bestPct > 0): ?>
+        <a class="promo-hint" href="<?= e(url('boutique', ['promo' => 1])) ?>"><b>PROMOS</b> jusqu'à −<?= $bestPct ?> % en ce moment</a>
+      <?php endif; ?>
     </div>
   </nav>
 </header>
@@ -158,9 +160,9 @@ function page_footer(array $extraScripts = []): void
       <span class="legal">
         <a href="<?= e(url('a-propos')) ?>">À propos</a>
         <a href="<?= e(url('engagements')) ?>">Nos engagements</a>
+        <a href="<?= e(url('contact')) ?>">Contact</a>
         <a href="<?= e(url('cgv')) ?>">CGV</a>
         <a href="<?= e(url('confidentialite')) ?>">Confidentialité</a>
-        <a href="<?= e(url('contact')) ?>">Contact</a>
       </span>
     </div>
   </div>

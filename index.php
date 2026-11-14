@@ -3,7 +3,6 @@ require __DIR__ . '/includes/bootstrap.php';
 
 $products = get_products();
 $best = array_slice(array_values(array_filter($products, fn($p) => $p['best_seller'])), 0, 4);
-$promo = array_slice(array_values(array_filter($products, fn($p) => $p['old_price'])), 0, 2);
 $news = array_slice(array_values(array_filter($products, fn($p) => $p['is_new'])), 0, 4);
 
 page_header(['active' => '']);
@@ -45,17 +44,20 @@ page_header(['active' => '']);
 </section>
 <?php endif; ?>
 
+<?php if ($homePromo = home_promotion()): $pc = count($homePromo['products']); ?>
 <section class="container section">
-  <div class="promo-band pattern-band">
+  <div class="promo-band pattern-band<?= $pc > 2 ? ' is-wide' : '' ?>" style="--n:<?= $pc ?>">
     <div>
-      <span class="pill">OFFRES SPÉCIALES</span>
-      <h2>Jusqu'à −20 % sur une sélection du terroir</h2>
-      <p>Fonio, bouye, mangue séchée… profitez de nos promotions de la semaine.</p>
+      <span class="pill"><?= e($homePromo['badge'] ?: 'OFFRES SPÉCIALES') ?></span>
+      <h2><?= e($homePromo['title'] ?: $homePromo['name']) ?></h2>
+      <?php if ($homePromo['description']): ?><p><?= e($homePromo['description']) ?></p><?php endif; ?>
+      <?php if ($homePromo['ends_at']): ?><p class="promo-ends"><?= icon('bell') ?> Jusqu'au <?= e(fr_date($homePromo['ends_at'], 'short')) ?></p><?php endif; ?>
       <a href="<?= e(url('boutique', ['promo' => 1])) ?>" class="btn btn-accent">Voir les promotions</a>
     </div>
-    <div class="promo-cards"><?php foreach ($promo as $p) echo product_card($p); ?></div>
+    <div class="promo-cards"><?php foreach ($homePromo['products'] as $p) echo product_card($p); ?></div>
   </div>
 </section>
+<?php endif; ?>
 
 <?php if ($news): ?>
 <section class="container section">

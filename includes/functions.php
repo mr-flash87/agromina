@@ -301,12 +301,13 @@ function normalize_product(array $r): array
     return $r;
 }
 
-/** @return array<int, array> */
+/** @return array<int, array> Produits avec les promotions en cours déjà appliquées (sauf pour l'admin). */
 function get_products(bool $activeOnly = true): array
 {
     $sql = 'SELECT * FROM products' . ($activeOnly ? ' WHERE is_active = 1' : '')
         . ($activeOnly ? ' ORDER BY created_at ASC, name ASC' : ' ORDER BY created_at DESC, name ASC');
-    return array_map('normalize_product', db()->query($sql)->fetchAll());
+    $rows = array_map('normalize_product', db()->query($sql)->fetchAll());
+    return $activeOnly ? array_map('apply_promo', $rows) : $rows;
 }
 
 function get_product_by_slug(string $slug): ?array
@@ -314,7 +315,85 @@ function get_product_by_slug(string $slug): ?array
     $st = db()->prepare('SELECT * FROM products WHERE slug = ? AND is_active = 1');
     $st->execute([$slug]);
     $r = $st->fetch();
-    return $r ? normalize_product($r) : null;
+    return $r ? apply_promo(normalize_product($r)) : null;
+}
+
+/* ---------------------------------------------------------------- Promotions */
+
+/** Promotions actives en ce moment (activées et dans leurs dates). */
+function active_promotions(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = db()->query('SELECT * FROM promotions WHERE is_active = 1
+        AND (starts_at IS NULL OR starts_at <= UTC_TIMESTAMP()) AND (ends_at IS NULL OR ends_at > UTC_TIMESTAMP())
+        ORDER BY updated_at DESC, id DESC')->fetchAll();
+    return $cache;
+}
+
+/** @return array<int, int> id produit → meilleure remise (%) en cours */
+function promo_discounts(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $cache = [];
+    $ids = array_map(fn($p) => (int) $p['id'], array_filter(active_promotions(), fn($p) => (int) $p['discount_percent'] > 0));
+    if ($ids) {
+        $in = implode(',', $ids);
+        foreach (db()->query("SELECT pp.product_id, MAX(p.discount_percent) d FROM promotion_products pp JOIN promotions p ON p.id = pp.promotion_id WHERE pp.promotion_id IN ($in) GROUP BY pp.product_id") as $r) {
+            $cache[(int) $r['product_id']] = (int) $r['d'];
+        }
+    }
+    return $cache;
+}
+
+function promo_price(int $price, int $pct): int
+{
+    return max(0, (int) (round($price * (100 - $pct) / 100 / 5) * 5));
+}
+
+/** Applique la remise en cours : le prix normal devient le prix barré. */
+function apply_promo(array $p): array
+{
+    $pct = promo_discounts()[$p['id']] ?? 0;
+    if ($pct > 0) {
+        $base = $p['price'];
+        $p['price'] = promo_price($base, $pct);
+        $p['old_price'] = max($p['old_price'] ?? 0, $base);
+    }
+    return $p;
+}
+
+/** Promotion mise en avant sur l'accueil, avec ses produits (prix remisés). */
+function home_promotion(): ?array
+{
+    foreach (active_promotions() as $promo) {
+        if (!(int) $promo['show_on_home']) {
+            continue;
+        }
+        $st = db()->prepare('SELECT p.* FROM promotion_products pp JOIN products p ON p.id = pp.product_id
+            WHERE pp.promotion_id = ? AND p.is_active = 1 ORDER BY pp.position, p.name LIMIT 4');
+        $st->execute([$promo['id']]);
+        $promo['products'] = array_map(fn($r) => apply_promo(normalize_product($r)), $st->fetchAll());
+        if ($promo['products']) {
+            return $promo;
+        }
+    }
+    return null;
+}
+
+/** Plus forte remise visible en boutique (pour le bandeau « PROMOS »). */
+function best_discount_now(): int
+{
+    $best = 0;
+    foreach (get_products() as $p) {
+        $best = max($best, discount_pct($p));
+    }
+    return $best;
 }
 
 function discount_pct(array $p): int
@@ -459,25 +538,34 @@ function inline_md(string $s): string
     return preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', e($s)) ?? e($s);
 }
 
-/** Crée les nouvelles tables sur un site déjà installé (mise à jour automatique). */
+/** Crée les nouvelles tables sur un site déjà installé (mise à jour automatique, une seule fois). */
 function ensure_schema(): void
 {
-    $marker = __DIR__ . '/.schema-v2';
-    if (is_file($marker)) {
-        return;
+    $steps = [
+        'v2' => ['posts.sql', 'posts-seed.sql'],
+        'v3' => ['promotions.sql', 'promotions-seed.sql'],
+    ];
+    foreach ($steps as $version => $files) {
+        $marker = __DIR__ . '/.schema-' . $version;
+        if (is_file($marker)) {
+            continue;
+        }
+        foreach ($files as $file) {
+            run_sql_file(APP_ROOT . '/sql/' . $file);
+        }
+        @file_put_contents($marker, date('c'));
     }
-    $pdo = db();
-    $pdo->exec(file_get_contents(APP_ROOT . '/sql/posts.sql') ?: '');
-    if ((int) $pdo->query('SELECT COUNT(*) FROM posts')->fetchColumn() === 0) {
-        $sql = (string) file_get_contents(APP_ROOT . '/sql/posts-seed.sql');
-        $sql = preg_replace('/^\s*--.*$/m', '', $sql) ?? '';
-        foreach (preg_split('/;\s*(\r?\n|$)/', $sql) ?: [] as $stmt) {
-            if (trim($stmt) !== '') {
-                $pdo->exec($stmt);
-            }
+}
+
+function run_sql_file(string $path): void
+{
+    $sql = (string) file_get_contents($path);
+    $sql = preg_replace('/^\s*--.*$/m', '', $sql) ?? '';
+    foreach (preg_split('/;\s*(\r?\n|$)/', $sql) ?: [] as $stmt) {
+        if (trim($stmt) !== '') {
+            db()->exec($stmt);
         }
     }
-    @file_put_contents($marker, date('c'));
 }
 
 /* ---------------------------------------------------------------- WhatsApp de la boutique */

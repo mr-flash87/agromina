@@ -60,7 +60,11 @@ try {
     $st = $pdo->prepare("SELECT id, slug, name, price, stock FROM products WHERE is_active = 1 AND slug IN ($in) FOR UPDATE");
     $st->execute(array_keys($wanted));
     $rows = [];
+    $discounts = promo_discounts();
     foreach ($st->fetchAll() as $r) {
+        if (!empty($discounts[(int) $r['id']])) {
+            $r['price'] = promo_price((int) $r['price'], $discounts[(int) $r['id']]);
+        }
         $rows[$r['slug']] = $r;
     }
 
@@ -138,4 +142,31 @@ if ($notify !== '' && function_exists('mail')) {
     @mail($notify, "=?UTF-8?B?" . base64_encode("Nouvelle commande $ref") . "?=", $body, "Content-Type: text/plain; charset=UTF-8");
 }
 
-json_out(['ok' => true, 'ref' => $ref, 'subtotal' => $subtotal, 'deliveryFee' => $fee, 'total' => $total]);
+// Réponse immédiate au client, puis notification des téléphones admin en arrière-plan.
+$response = json_encode(['ok' => true, 'ref' => $ref, 'subtotal' => $subtotal, 'deliveryFee' => $fee, 'total' => $total], JSON_UNESCAPED_UNICODE);
+header('Content-Type: application/json; charset=utf-8');
+header('Content-Length: ' . strlen($response));
+echo $response;
+session_write_close();
+if (function_exists('litespeed_finish_request')) {
+    litespeed_finish_request();
+} elseif (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+} else {
+    @ob_flush();
+    flush();
+}
+ignore_user_abort(true);
+try {
+    require_once APP_ROOT . '/includes/webpush.php';
+    $count = array_sum(array_column($lines, 'qty'));
+    notify_staff([
+        'title' => 'Nouvelle commande · ' . fcfa($total),
+        'body' => "$fullName — $count article" . ($count > 1 ? 's' : '') . ' · ' . $payment . ($city ? " · $city" : '') . "\n$ref",
+        'url' => url('admin/commandes', ['q' => $ref]),
+        'tag' => 'order-' . $ref,
+    ]);
+} catch (Throwable $e) {
+    error_log('AgroMina push: ' . $e->getMessage());
+}
+exit;

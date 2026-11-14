@@ -42,7 +42,7 @@ if (!$locked && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
             $pdo->exec("SET time_zone = '+00:00'");
-            foreach (['schema.sql', 'seed.sql', 'posts.sql', 'posts-seed.sql'] as $file) {
+            foreach (['schema.sql', 'seed.sql', 'posts.sql', 'posts-seed.sql', 'promotions.sql', 'promotions-seed.sql'] as $file) {
                 $sql = (string) file_get_contents("$root/sql/$file");
                 $sql = preg_replace('/^\s*--.*$/m', '', $sql) ?? '';
                 foreach (preg_split('/;\s*(\r?\n|$)/', $sql) ?: [] as $stmt) {

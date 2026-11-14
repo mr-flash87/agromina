@@ -3,7 +3,7 @@
    - Styles, scripts, images : cache d'abord
    - Polices Google : cache puis mise à jour en arrière-plan
    Les commandes, connexions et envois de formulaires (POST) ne passent jamais par le cache. */
-const VERSION = "am-v2";
+const VERSION = "am-v3";
 const PAGES = "am-pages-" + VERSION;
 const ASSETS = "am-assets-" + VERSION;
 const FONTS = "am-fonts-" + VERSION;
@@ -103,4 +103,31 @@ self.addEventListener("fetch", (event) => {
       return res;
     }))));
   }
+});
+
+// Notifications de nouvelles commandes
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
+  const title = data.title || "AgroMina Admin";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || "Nouvelle activité sur la boutique",
+    icon: new URL("assets/img/admin-icon-192.png", scope).href,
+    badge: new URL("assets/img/admin-icon-192.png", scope).href,
+    tag: data.tag || undefined,
+    renotify: true,
+    vibrate: [120, 60, 120],
+    data: { url: data.url || new URL("admin/commandes", scope).href },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data && event.notification.data.url || "admin/commandes", scope).href;
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    for (const c of list) {
+      if (c.url.startsWith(new URL("admin/", scope).href) && "focus" in c) { c.navigate(target); return c.focus(); }
+    }
+    return self.clients.openWindow(target);
+  }));
 });
