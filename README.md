@@ -13,7 +13,7 @@ sans Supabase et sans abonnement Lovable**.
 - Panier et commande sans compte : paiement à la livraison, Wave ou Orange Money, frais de livraison 1 500 FCFA
 - Ticket de confirmation avec référence `AM-XXXXXXXX`, puis page **Suivre ma commande** (référence + téléphone)
 - Favoris, Contact (messages enregistrés), À propos, Engagements, Blog, CGV, Confidentialité
-- Compte : connexion, coordonnées pré-remplies au panier, changement de mot de passe
+- Pas de compte client : les clients commandent sans compte. Seule l'équipe se connecte, via `/admin`
 
 **Espace admin** (`/admin/`)
 - Tableau de bord : chiffre d'affaires, panier moyen, commandes livrées/reçues sur 7, 30 ou 90 jours, graphique, statuts, alerte de stock faible

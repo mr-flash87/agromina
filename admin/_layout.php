@@ -93,7 +93,7 @@ function admin_footer(): void
       <?php if (is_super($ADMIN)): ?><a class="sheet-item" href="<?= e(url('admin/equipe')) ?>"><?= icon('shield-check') ?>Équipe</a><?php endif; ?>
       <button type="button" class="sheet-item" data-theme-toggle><?= icon('moon') ?>Mode sombre</button>
       <a class="sheet-item" href="<?= e(url('')) ?>" target="_blank"><?= icon('store') ?>Voir la boutique</a>
-      <a class="sheet-item" href="<?= e(url('compte')) ?>"><?= icon('user') ?>Mon compte</a>
+      <a class="sheet-item" href="<?= e(url('admin/compte')) ?>"><?= icon('user') ?>Mon compte</a>
     </div>
     <div class="push-box" data-push-box hidden>
       <div><b><?= icon('bell') ?> Notifications de commande</b><small data-push-status>Recevez une alerte à chaque nouvelle commande.</small></div>

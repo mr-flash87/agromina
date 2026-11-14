@@ -3,7 +3,7 @@
    - Styles, scripts, images : cache d'abord
    - Polices Google : cache puis mise à jour en arrière-plan
    Les commandes, connexions et envois de formulaires (POST) ne passent jamais par le cache. */
-const VERSION = "am-v3";
+const VERSION = "am-v4";
 const PAGES = "am-pages-" + VERSION;
 const ASSETS = "am-assets-" + VERSION;
 const FONTS = "am-fonts-" + VERSION;
@@ -98,10 +98,12 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (path.startsWith(new URL("assets/", scope).pathname) || path.startsWith(new URL("uploads/", scope).pathname)) {
-    event.respondWith(caches.open(ASSETS).then((c) => c.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req).then((res) => {
+    // Les fichiers ont un numéro de version (?v=…) : la bonne version vient du cache, une nouvelle
+    // version vient du réseau. Hors ligne seulement, on accepte une ancienne version.
+    event.respondWith(caches.open(ASSETS).then((c) => c.match(req).then((hit) => hit || fetch(req).then((res) => {
       if (res.ok) { c.put(req, res.clone()); trim(ASSETS, 200); }
       return res;
-    }))));
+    }).catch(() => c.match(req, { ignoreSearch: true }).then((old) => old || Response.error())))));
   }
 });
 

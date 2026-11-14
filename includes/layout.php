@@ -58,11 +58,6 @@ function page_header(array $o = []): void
       </form>
       <div class="header-actions">
         <a href="<?= e(url('favoris')) ?>" class="h-action" aria-label="Favoris"><?= icon('heart') ?><span class="badge" data-fav-count hidden>0</span><span class="h-label">Favoris</span></a>
-        <?php if ($user): ?>
-          <a href="<?= e(url('compte')) ?>" class="h-action h-account"><?= icon('user') ?><span class="h-label">Compte</span></a>
-        <?php else: ?>
-          <a href="<?= e(url('connexion')) ?>" class="h-action h-account"><?= icon('user') ?><span class="h-label">Connexion</span></a>
-        <?php endif; ?>
         <a href="<?= e(url('panier')) ?>" class="h-action" aria-label="Panier"><?= icon('cart') ?><span class="badge" data-cart-count>0</span><span class="h-label">Panier</span></a>
       </div>
     </div>
