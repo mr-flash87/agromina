@@ -288,3 +288,42 @@
   renderFavPage();
   renderCart();
 })();
+
+/* WhatsApp : message de commande pré-rempli (fiche produit et panier). */
+(function () {
+  "use strict";
+  var AM = window.AM || {};
+  if (!AM.whatsapp) return;
+  function fcfa(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " FCFA"; }
+  function open(text) { window.open("https://wa.me/" + AM.whatsapp + "?text=" + encodeURIComponent(text), "_blank", "noopener"); }
+
+  var prod = document.querySelector("[data-wa-product]");
+  if (prod) prod.addEventListener("click", function (e) {
+    e.preventDefault();
+    var qtyEl = document.querySelector("[data-qty] span");
+    var qty = qtyEl ? parseInt(qtyEl.textContent, 10) || 1 : 1;
+    var price = parseInt(prod.getAttribute("data-price"), 10) || 0;
+    open("Bonjour AgroMina, je souhaite commander :\n• " + prod.getAttribute("data-name") + " × " + qty + " = " + fcfa(price * qty) +
+      "\n\n" + prod.getAttribute("data-url"));
+  });
+
+  var cartBtn = document.querySelector("[data-wa-cart]");
+  if (cartBtn) cartBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    var catalog = {};
+    (window.AM_CATALOG || []).forEach(function (p) { catalog[p.slug] = p; });
+    var lines = [];
+    try { lines = JSON.parse(localStorage.getItem("am-cart") || "[]"); } catch (err) { lines = []; }
+    var total = 0, rows = [];
+    lines.forEach(function (l) {
+      var p = catalog[l.slug]; if (!p) return;
+      total += p.price * l.qty; rows.push("• " + p.name + " × " + l.qty + " = " + fcfa(p.price * l.qty));
+    });
+    var form = document.querySelector("[data-checkout]");
+    var name = form ? String(new FormData(form).get("fullName") || "").trim() : "";
+    var addr = form ? [new FormData(form).get("address"), new FormData(form).get("city")].filter(Boolean).join(", ") : "";
+    open("Bonjour AgroMina, je souhaite commander :\n" + rows.join("\n") +
+      "\n\nSous-total : " + fcfa(total) + "\nLivraison : " + fcfa(AM.deliveryFee) + "\nTotal : " + fcfa(total + AM.deliveryFee) +
+      (name ? "\n\nNom : " + name : "") + (addr ? "\nAdresse : " + addr : ""));
+  });
+})();

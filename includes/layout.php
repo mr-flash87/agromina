@@ -92,7 +92,7 @@ function page_footer(array $extraScripts = []): void
 {
     ?>
 </main>
-<?php $wa = preg_replace('/\D/', '', (string) cfg('whatsapp', cfg('contact_phone', ''))); ?>
+<?php $wa = shop_whatsapp(); ?>
 <section class="reassure" aria-label="Nos garanties">
   <div class="container reassure-grid">
     <div><span><?= icon('truck') ?></span><p><b>Livraison partout au Sénégal</b><small>Rapide et suivie</small></p></div>
@@ -166,11 +166,15 @@ function page_footer(array $extraScripts = []): void
     </div>
   </div>
 </footer>
+<?php if (shop_whatsapp() !== ''): ?>
+  <a class="wa-float" href="<?= e(shop_whatsapp_link('Bonjour AgroMina, je souhaite passer une commande.')) ?>" target="_blank" rel="noopener" aria-label="Commander sur WhatsApp" data-wa-float><?= icon('message') ?><span>Commander</span></a>
+<?php endif; ?>
 <div class="toasts" data-toasts aria-live="polite"></div>
 <script>window.AM = <?= json_encode([
     'base' => rtrim((string) cfg('base_url', ''), '/'),
     'csrf' => csrf_token(),
     'deliveryFee' => (int) cfg('delivery_fee', 1500),
+    'whatsapp' => shop_whatsapp(),
     'icons' => [
         'minus' => icon('minus'), 'plus' => icon('plus'), 'trash' => icon('trash'),
         'check' => icon('check'), 'banknote' => icon('banknote'), 'smartphone' => icon('smartphone'),

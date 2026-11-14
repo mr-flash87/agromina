@@ -479,3 +479,22 @@ function ensure_schema(): void
     }
     @file_put_contents($marker, date('c'));
 }
+
+/* ---------------------------------------------------------------- WhatsApp de la boutique */
+
+/** Numéro WhatsApp d'AgroMina (réglage « whatsapp », sinon le téléphone affiché), chiffres seuls. */
+function shop_whatsapp(): string
+{
+    $digits = preg_replace('/\D/', '', (string) cfg('whatsapp', cfg('contact_phone', ''))) ?? '';
+    // Numéro d'exemple non modifié (+221 00 000 00 00) : pas de bouton.
+    if (strlen($digits) < 8 || preg_match('/^(221)?0+$/', $digits)) {
+        return '';
+    }
+    return $digits;
+}
+
+function shop_whatsapp_link(string $text = ''): string
+{
+    $n = shop_whatsapp();
+    return $n === '' ? '' : 'https://wa.me/' . $n . ($text !== '' ? '?text=' . rawurlencode($text) : '');
+}

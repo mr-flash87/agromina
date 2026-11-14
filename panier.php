@@ -75,6 +75,11 @@ page_header([
 
             <button type="submit" class="btn btn-primary co-submit"><span>Valider la commande (<span data-submit-total></span>)</span> <?= icon('arrow-right') ?></button>
             <p class="co-hint" data-pay-hint>Vous payez en espèces au livreur, après vérification.</p>
+            <?php if (shop_whatsapp() !== ''): ?>
+              <div class="co-or"><span>ou</span></div>
+              <a class="btn btn-wa btn-block" href="<?= e(shop_whatsapp_link()) ?>" target="_blank" rel="noopener" data-wa-cart><?= icon('message') ?> Commander via WhatsApp</a>
+              <p class="co-hint">Votre panier est envoyé à AgroMina sur WhatsApp, et nous finalisons ensemble.</p>
+            <?php endif; ?>
           </form>
         </div>
 

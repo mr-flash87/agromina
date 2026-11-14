@@ -68,6 +68,13 @@ page_header([
           <button type="button" class="fav-big" data-fav="<?= e($p['slug']) ?>" aria-label="Favori"><?= icon('heart') ?></button>
         </div>
 
+        <?php if (shop_whatsapp() !== '' && !$out): ?>
+          <a class="btn btn-wa btn-block wa-product" href="<?= e(shop_whatsapp_link('Bonjour AgroMina, je souhaite commander : ' . $p['name'])) ?>" target="_blank" rel="noopener"
+             data-wa-product data-name="<?= e($p['name'] . ($p['weight'] ? ' (' . $p['weight'] . ')' : '')) ?>" data-price="<?= $p['price'] ?>" data-url="<?= e((isset($_SERVER['HTTP_HOST']) ? ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] : '') . url('produit/' . $p['slug'])) ?>">
+            <?= icon('message') ?> Commander via WhatsApp
+          </a>
+        <?php endif; ?>
+
         <div class="perks">
           <div><?= icon('shield-check') ?><b>Inspection libre</b><small>Vérifiez avant de payer</small></div>
           <div><?= icon('truck') ?><b>Livraison rapide</b><small>Partout au Sénégal</small></div>
