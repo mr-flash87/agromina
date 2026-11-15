@@ -311,16 +311,17 @@ function normalize_product(array $r): array
         $r[$k] = (int) $r[$k];
     }
     $r['old_price'] = $r['old_price'] === null ? null : (int) $r['old_price'];
-    foreach (['is_new', 'best_seller', 'is_active'] as $k) {
-        $r[$k] = (bool) $r[$k];
+    foreach (['is_new', 'best_seller', 'is_active', 'is_listed'] as $k) {
+        $r[$k] = (bool) ($r[$k] ?? true);
     }
     return $r;
 }
 
 /** @return array<int, array> Produits avec les promotions en cours déjà appliquées (sauf pour l'admin). */
-function get_products(bool $activeOnly = true): array
+function get_products(bool $activeOnly = true, bool $listedOnly = true): array
 {
-    $sql = 'SELECT * FROM products' . ($activeOnly ? ' WHERE is_active = 1' : '')
+    $where = $activeOnly ? ' WHERE is_active = 1' . ($listedOnly ? ' AND is_listed = 1' : '') : '';
+    $sql = 'SELECT * FROM products' . $where
         . ($activeOnly ? ' ORDER BY created_at ASC, name ASC' : ' ORDER BY created_at DESC, name ASC');
     $rows = array_map('normalize_product', db()->query($sql)->fetchAll());
     return $activeOnly ? array_map('apply_promo', $rows) : $rows;
@@ -392,7 +393,7 @@ function home_promotion(): ?array
             continue;
         }
         $st = db()->prepare('SELECT p.* FROM promotion_products pp JOIN products p ON p.id = pp.product_id
-            WHERE pp.promotion_id = ? AND p.is_active = 1 ORDER BY pp.position, p.name LIMIT 4');
+            WHERE pp.promotion_id = ? AND p.is_active = 1 AND p.is_listed = 1 ORDER BY pp.position, p.name LIMIT 4');
         $st->execute([$promo['id']]);
         $promo['products'] = array_map(fn($r) => apply_promo(normalize_product($r)), $st->fetchAll());
         if ($promo['products']) {
@@ -561,14 +562,19 @@ function ensure_schema(): void
         'v2' => ['posts.sql', 'posts-seed.sql'],
         'v3' => ['promotions.sql', 'promotions-seed.sql'],
         'v4' => ['categories.sql', 'categories-seed.sql'],
+        'v5' => 'migrate_v5',
     ];
     foreach ($steps as $version => $files) {
         $marker = __DIR__ . '/.schema-' . $version;
         if (is_file($marker)) {
             continue;
         }
-        foreach ($files as $file) {
-            run_sql_file(APP_ROOT . '/sql/' . $file);
+        if (is_string($files)) {
+            $files();
+        } else {
+            foreach ($files as $file) {
+                run_sql_file(APP_ROOT . '/sql/' . $file);
+            }
         }
         @file_put_contents($marker, date('c'));
     }
@@ -602,4 +608,42 @@ function shop_whatsapp_link(string $text = ''): string
 {
     $n = shop_whatsapp();
     return $n === '' ? '' : 'https://wa.me/' . $n . ($text !== '' ? '?text=' . rawurlencode($text) : '');
+}
+
+/** v5 : « visible en boutique » séparé de « page en ligne » + compteur de vues par produit. */
+function migrate_v5(): void
+{
+    $pdo = db();
+    $has = $pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'is_listed'")->fetchColumn();
+    if (!(int) $has) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN is_listed TINYINT(1) NOT NULL DEFAULT 1 AFTER is_active');
+    }
+    $pdo->exec('CREATE TABLE IF NOT EXISTS product_views (
+        product_id INT UNSIGNED NOT NULL,
+        day DATE NOT NULL,
+        views INT UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY (product_id, day),
+        CONSTRAINT product_views_product_fk FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+}
+
+/** Compte une visite de fiche produit (une par visiteur et par produit toutes les 30 min ; ni l'équipe ni les robots). */
+function record_product_view(int $productId): void
+{
+    $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    if ($ua === '' || preg_match('/bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|curl|wget|python|headless/i', $ua) || is_staff()) {
+        return;
+    }
+    $now = time();
+    $seen = $_SESSION['viewed'] ?? [];
+    if (isset($seen[$productId]) && $seen[$productId] > $now - 1800) {
+        return;
+    }
+    $seen[$productId] = $now;
+    $_SESSION['viewed'] = array_slice($seen, -50, null, true);
+    try {
+        db()->prepare('INSERT INTO product_views (product_id, day, views) VALUES (?, CURDATE(), 1) ON DUPLICATE KEY UPDATE views = views + 1')->execute([$productId]);
+    } catch (Throwable $e) {
+        error_log('AgroMina vues: ' . $e->getMessage());
+    }
 }

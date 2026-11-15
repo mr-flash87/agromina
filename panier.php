@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
 
-$catalog = array_map('product_for_js', get_products());
+$catalog = array_map('product_for_js', get_products(true, false));
 $user = current_user();
 $fee = (int) cfg('delivery_fee', 1500);
 $phoneLocal = $user ? preg_replace('/^\+221\s*/', '', $user['phone']) : '';

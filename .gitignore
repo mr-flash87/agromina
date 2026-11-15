@@ -13,3 +13,4 @@ includes/.schema-v3
 includes/.schema-v4
 uploads/categories/*
 !uploads/categories/.gitkeep
+includes/.schema-v5

@@ -13,6 +13,7 @@ if (!$p) {
     exit;
 }
 
+record_product_view($p['id']);
 $related = array_slice(array_values(array_filter(get_products(), fn($x) => $x['category'] === $p['category'] && $x['slug'] !== $p['slug'])), 0, 4);
 $cat = category_of($p['category']);
 $out = $p['stock'] === 0;

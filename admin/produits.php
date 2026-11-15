@@ -18,17 +18,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int) ($_POST['id'] ?? 0);
     $pdo = db();
 
-    if ($action === 'toggle' && ($p = find_product($id))) {
+    $back = static fn(int $id) => url('admin/produits', array_filter(['q' => $_POST['f_q'] ?? '', 'vue' => $_POST['f_vue'] ?? ''])) . '#p' . $id;
+    if (in_array($action, ['toggle', 'toggle_active'], true) && ($p = find_product($id))) {
         $pdo->prepare('UPDATE products SET is_active = ? WHERE id = ?')->execute([$p['is_active'] ? 0 : 1, $id]);
-        flash('success', $p['is_active'] ? 'Produit masqué de la boutique' : 'Produit publié');
-        redirect(url('admin/produits') . '#p' . $id);
+        flash('success', $p['is_active'] ? 'Page produit hors ligne : elle n\'est plus accessible' : 'Page produit en ligne');
+        redirect($back($id));
+    }
+    if ($action === 'toggle_listed' && ($p = find_product($id))) {
+        $pdo->prepare('UPDATE products SET is_listed = ? WHERE id = ?')->execute([$p['is_listed'] ? 0 : 1, $id]);
+        flash('success', $p['is_listed'] ? 'Produit retiré de la boutique (sa page reste accessible par son lien)' : 'Produit visible dans la boutique');
+        redirect($back($id));
     }
 
     if ($action === 'duplicate' && ($p = find_product($id))) {
         $slug = substr($p['slug'], 0, 64) . '-copie-' . substr(bin2hex(random_bytes(2)), 0, 4);
         $pdo->prepare(
-            'INSERT INTO products (slug, name, category, price, old_price, stock, weight, description, is_new, best_seller, is_active, image_url)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)'
+            'INSERT INTO products (slug, name, category, price, old_price, stock, weight, description, is_new, best_seller, is_active, is_listed, image_url)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?)'
         )->execute([$slug, mb_substr($p['name'] . ' (copie)', 0, 120), $p['category'], $p['price'], $p['old_price'], $p['stock'], $p['weight'], $p['description'], (int) $p['is_new'], (int) $p['best_seller'], $p['image_url']]);
         flash('success', 'Produit dupliqué (masqué tant que vous ne le publiez pas)');
         redirect(url('admin/produits', ['edit' => $pdo->lastInsertId()]));
@@ -56,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'id' => $id ?: null, 'name' => $name, 'slug' => $slug, 'category' => $category, 'price' => $price,
             'old_price' => $oldPrice, 'stock' => $stock, 'weight' => str_input('weight', 40),
             'description' => str_input('description', 2000), 'is_new' => !empty($_POST['is_new']),
-            'best_seller' => !empty($_POST['best_seller']), 'is_active' => !empty($_POST['is_active']), 'image_url' => $image,
+            'best_seller' => !empty($_POST['best_seller']), 'is_active' => !empty($_POST['is_active']),
+            'is_listed' => !empty($_POST['is_listed']), 'image_url' => $image,
         ];
 
         if (mb_strlen($name) < 2) $formError = 'Nom trop court.';
@@ -87,13 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$formError) {
             $vals = [$slug, $name, $category, $price, $oldPrice, $stock, $draft['weight'], $draft['description'],
-                (int) $draft['is_new'], (int) $draft['best_seller'], (int) $draft['is_active'], $image];
+                (int) $draft['is_new'], (int) $draft['best_seller'], (int) $draft['is_active'], (int) $draft['is_listed'], $image];
             if ($existing) {
-                $pdo->prepare('UPDATE products SET slug=?, name=?, category=?, price=?, old_price=?, stock=?, weight=?, description=?, is_new=?, best_seller=?, is_active=?, image_url=? WHERE id=?')
+                $pdo->prepare('UPDATE products SET slug=?, name=?, category=?, price=?, old_price=?, stock=?, weight=?, description=?, is_new=?, best_seller=?, is_active=?, is_listed=?, image_url=? WHERE id=?')
                     ->execute([...$vals, $id]);
                 if ($existing['image_url'] !== $image) delete_uploaded_image($existing['image_url']);
             } else {
-                $pdo->prepare('INSERT INTO products (slug, name, category, price, old_price, stock, weight, description, is_new, best_seller, is_active, image_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+                $pdo->prepare('INSERT INTO products (slug, name, category, price, old_price, stock, weight, description, is_new, best_seller, is_active, is_listed, image_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
                     ->execute($vals);
                 $id = (int) $pdo->lastInsertId();
             }
@@ -110,28 +117,85 @@ if (!$draft) {
         $firstCat = array_key_first(categories()) ?? '';
         $askCat = str_input('cat', 40, $_GET);
         $draft = ['id' => null, 'name' => '', 'slug' => '', 'category' => isset(categories()[$askCat]) ? $askCat : $firstCat, 'price' => '', 'old_price' => null, 'stock' => 0,
-            'weight' => '', 'description' => '', 'is_new' => false, 'best_seller' => false, 'is_active' => true, 'image_url' => null];
+            'weight' => '', 'description' => '', 'is_new' => false, 'best_seller' => false, 'is_active' => true, 'is_listed' => true, 'image_url' => null];
     }
 }
 
 $all = get_products(false);
 $q = str_input('q', 100, $_GET);
-$vue = in_array($_GET['vue'] ?? '', ['en_ligne', 'masques', 'stock'], true) ? $_GET['vue'] : 'tous';
+$vue = in_array($_GET['vue'] ?? '', ['en_ligne', 'masques', 'hors_ligne', 'stock'], true) ? $_GET['vue'] : 'tous';
 $needle = normalize_text($q);
 $list = array_values(array_filter($all, static function ($p) use ($needle, $vue) {
-    if ($needle !== '' && !str_contains(normalize_text($p['name'] . ' ' . $p['slug']), $needle)) return false;
-    return match ($vue) { 'en_ligne' => $p['is_active'], 'masques' => !$p['is_active'], 'stock' => $p['stock'] < 5, default => true };
+    if ($needle !== '' && !str_contains(normalize_text($p['name'] . ' ' . $p['slug'] . ' ' . category_of($p['category'])['name']), $needle)) return false;
+    return match ($vue) {
+        'en_ligne' => $p['is_active'] && $p['is_listed'],
+        'masques' => $p['is_active'] && !$p['is_listed'],
+        'hors_ligne' => !$p['is_active'],
+        'stock' => $p['stock'] < 5,
+        default => true,
+    };
 }));
 
-$sold = [];
-foreach (db()->query("SELECT oi.product_id, SUM(oi.quantity) n FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.status <> 'annulee' AND oi.product_id IS NOT NULL GROUP BY oi.product_id") as $r) {
-    $sold[(int) $r['product_id']] = (int) $r['n'];
+// Statistiques : vues (fiche produit), commandes, quantités et chiffre d'affaires (hors commandes annulées)
+$views = [];
+foreach (db()->query('SELECT product_id, SUM(views) n FROM product_views GROUP BY product_id') as $r) {
+    $views[(int) $r['product_id']] = (int) $r['n'];
+}
+$sales = [];
+foreach (db()->query("SELECT oi.product_id, COUNT(DISTINCT o.id) orders, SUM(oi.quantity) qty, SUM(oi.quantity * oi.unit_price) amount
+    FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.status <> 'annulee' AND oi.product_id IS NOT NULL GROUP BY oi.product_id") as $r) {
+    $sales[(int) $r['product_id']] = ['orders' => (int) $r['orders'], 'qty' => (int) $r['qty'], 'amount' => (int) $r['amount']];
+}
+$conversion = static function (int $orders, int $views): string {
+    if ($views === 0) return $orders ? '—' : '0%';
+    $pct = min(100, $orders / $views * 100); // commandes passées avant le suivi des vues
+    return ($pct >= 10 || $pct == 0 ? (string) round($pct) : number_format($pct, 1, ',', '')) . '%';
+};
+
+// Vue « Statistiques » d'un produit
+$statsProduct = isset($_GET['stats']) ? find_product((int) $_GET['stats']) : null;
+$statsDays = [];
+$statsOrders = [];
+if ($statsProduct) {
+    $pid = $statsProduct['id'];
+    for ($i = 13; $i >= 0; $i--) {
+        $statsDays[date('Y-m-d', strtotime("-$i days"))] = ['views' => 0, 'qty' => 0];
+    }
+    $st = db()->prepare('SELECT day, views FROM product_views WHERE product_id = ? AND day >= ?');
+    $st->execute([$pid, array_key_first($statsDays)]);
+    foreach ($st as $r) if (isset($statsDays[$r['day']])) $statsDays[$r['day']]['views'] = (int) $r['views'];
+    $st = db()->prepare("SELECT DATE(o.created_at) d, SUM(oi.quantity) q FROM order_items oi JOIN orders o ON o.id = oi.order_id
+        WHERE oi.product_id = ? AND o.status <> 'annulee' AND o.created_at >= ? GROUP BY DATE(o.created_at)");
+    $st->execute([$pid, array_key_first($statsDays) . ' 00:00:00']);
+    foreach ($st as $r) if (isset($statsDays[$r['d']])) $statsDays[$r['d']]['qty'] = (int) $r['q'];
+    $st = db()->prepare('SELECT o.ref, o.full_name, o.status, o.created_at, oi.quantity, oi.unit_price FROM order_items oi JOIN orders o ON o.id = oi.order_id
+        WHERE oi.product_id = ? ORDER BY o.created_at DESC LIMIT 6');
+    $st->execute([$pid]);
+    $statsOrders = $st->fetchAll();
 }
 
 admin_header('Produits', 'produits');
-admin_title('Produits', count($all) . ' produit(s) au catalogue', '<a class="btn btn-primary" href="' . e(url('admin/produits', ['nouveau' => 1])) . '">' . icon('plus') . 'Ajouter un produit</a>');
+?>
+<div class="pp-head">
+  <div><h1>Pages produits</h1><p><?= count($all) ?> produit<?= count($all) > 1 ? 's' : '' ?> au catalogue</p></div>
+</div>
+<div class="pp-tools">
+  <button type="button" class="pp-tool<?= $q !== '' ? ' is-on' : '' ?>" data-toggle="#pp-search" aria-label="Rechercher"><?= icon('search') ?></button>
+  <button type="button" class="pp-tool<?= $vue !== 'tous' ? ' is-on' : '' ?>" data-toggle="#pp-filters"><?= icon('sliders') ?><span>Filtrer</span></button>
+  <a class="pp-add" href="<?= e(url('admin/produits', ['nouveau' => 1])) ?>"><?= icon('plus') ?><span>Ajouter un produit</span></a>
+</div>
+<form class="pp-search" id="pp-search" method="get" <?= $q === '' ? 'hidden' : '' ?>>
+  <?= icon('search') ?><input name="q" value="<?= e($q) ?>" placeholder="Nom, catégorie…" autocomplete="off">
+  <?php if ($vue !== 'tous'): ?><input type="hidden" name="vue" value="<?= e($vue) ?>"><?php endif; ?>
+  <?php if ($q !== ''): ?><a href="<?= e(url('admin/produits', ['vue' => $vue === 'tous' ? '' : $vue])) ?>" aria-label="Effacer"><?= icon('x') ?></a><?php endif; ?>
+</form>
+<div class="chips pp-filters" id="pp-filters" <?= $vue === 'tous' ? 'hidden' : '' ?>>
+  <?php foreach (['tous' => 'Tous', 'en_ligne' => 'Publiés', 'masques' => 'Masqués de la boutique', 'hors_ligne' => 'Hors ligne', 'stock' => 'Stock faible'] as $k => $l): ?>
+    <a class="chip <?= $vue === $k ? 'is-active' : '' ?>" href="<?= e(url('admin/produits', ['vue' => $k === 'tous' ? '' : $k, 'q' => $q])) ?>"><?= e($l) ?></a>
+  <?php endforeach; ?>
+</div>
 
-if ($draft): $isEdit = !empty($draft['id']); ?>
+<?php if ($draft): $isEdit = !empty($draft['id']); ?>
   <form class="panel pform" method="post" enctype="multipart/form-data" action="<?= e(url('admin/produits')) ?>">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="save">
@@ -169,7 +233,8 @@ if ($draft): $isEdit = !empty($draft['id']); ?>
     <div class="pform-checks">
       <label class="check"><input type="checkbox" name="is_new" value="1" <?= $draft['is_new'] ? 'checked' : '' ?>>Nouveau</label>
       <label class="check"><input type="checkbox" name="best_seller" value="1" <?= $draft['best_seller'] ? 'checked' : '' ?>>Meilleure vente</label>
-      <label class="check"><input type="checkbox" name="is_active" value="1" <?= $draft['is_active'] ? 'checked' : '' ?>>Visible dans la boutique</label>
+      <label class="check"><input type="checkbox" name="is_listed" value="1" <?= ($draft['is_listed'] ?? true) ? 'checked' : '' ?>>Visible dans la boutique</label>
+      <label class="check"><input type="checkbox" name="is_active" value="1" <?= $draft['is_active'] ? 'checked' : '' ?>>Page produit en ligne</label>
     </div>
     <div class="pform-actions">
       <button class="btn btn-primary">Enregistrer</button>
@@ -191,47 +256,95 @@ if ($draft): $isEdit = !empty($draft['id']); ?>
   </script>
 <?php endif; ?>
 
-<form class="toolbar" method="get">
-  <label class="a-search"><?= icon('search') ?><input name="q" value="<?= e($q) ?>" placeholder="Rechercher un produit…"></label>
-  <?php if ($vue !== 'tous'): ?><input type="hidden" name="vue" value="<?= e($vue) ?>"><?php endif; ?>
-</form>
-<div class="chips">
-  <?php foreach (['tous' => 'Tous', 'en_ligne' => 'En ligne', 'masques' => 'Masqués', 'stock' => 'Stock faible'] as $k => $l): ?>
-    <a class="chip <?= $vue === $k ? 'is-active' : '' ?>" href="<?= e(url('admin/produits', ['vue' => $k === 'tous' ? '' : $k, 'q' => $q])) ?>"><?= e($l) ?></a>
-  <?php endforeach; ?>
-</div>
-
-<div class="prod-grid">
-  <?php foreach ($list as $p): $n = $sold[$p['id']] ?? 0; ?>
-    <div class="panel aprod" id="p<?= $p['id'] ?>">
-      <div class="aprod-top">
-        <img src="<?= e(product_image($p)) ?>" alt="">
-        <div class="aprod-info">
-          <div class="aprod-name"><p><?= e($p['name']) ?></p><span class="state <?= $p['is_active'] ? 'on' : '' ?>"><?= $p['is_active'] ? 'Publié' : 'Masqué' ?></span></div>
-          <p class="aprod-cat"><?= e(category_of($p['category'])['name']) ?><?= $p['weight'] ? ' · ' . e($p['weight']) : '' ?></p>
-          <p class="aprod-price"><?= fcfa($p['price']) ?><?php if ($p['old_price'] !== null): ?><s><?= fcfa($p['old_price']) ?></s><?php endif; ?></p>
-        </div>
-      </div>
-      <div class="aprod-stats">
-        <div><b class="<?= $p['stock'] === 0 ? 'out' : ($p['stock'] < 5 ? 'low' : '') ?>"><?= $p['stock'] ?></b><small>Stock</small></div>
-        <div><b><?= $n ?></b><small>Vendus</small></div>
-        <div><b><?= e(compact_number($n * $p['price'])) ?></b><small>Ventes</small></div>
-      </div>
-      <form method="post" class="aprod-vis">
-        <?= csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= $p['id'] ?>">
-        <div><p>Visible en boutique</p><small><?= $p['is_active'] ? 'Les clients le voient' : 'Caché aux clients' ?></small></div>
-        <button class="switch <?= $p['is_active'] ? 'on' : '' ?>" role="switch" aria-checked="<?= $p['is_active'] ? 'true' : 'false' ?>" aria-label="Visible en boutique"></button>
-      </form>
-      <div class="aprod-actions">
-        <a class="btn btn-primary" href="<?= e(url('admin/produits', ['edit' => $p['id']])) ?>"><?= icon('pencil') ?>Modifier</a>
-        <?php if ($p['is_active']): ?><a class="btn btn-outline" href="<?= e(url('produit/' . $p['slug'])) ?>" target="_blank"><?= icon('eye') ?>Voir</a><?php endif; ?>
-        <div class="push">
-          <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="duplicate"><input type="hidden" name="id" value="<?= $p['id'] ?>"><button class="icon-btn" aria-label="Dupliquer" title="Dupliquer"><?= icon('copy') ?></button></form>
-          <form method="post" data-confirm="Supprimer « <?= e($p['name']) ?> » ? Cette action est définitive."><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= $p['id'] ?>"><button class="icon-btn danger" aria-label="Supprimer" title="Supprimer"><?= icon('trash') ?></button></form>
-        </div>
+<?php if ($statsProduct): $sp = $statsProduct; $ss = $sales[$sp['id']] ?? ['orders' => 0, 'qty' => 0, 'amount' => 0]; $sv = $views[$sp['id']] ?? 0;
+    $maxV = max(1, ...array_column($statsDays, 'views'), ...array_column($statsDays, 'qty')); ?>
+  <section class="pp-stats" id="stats">
+    <div class="pp-stats-head">
+      <img src="<?= e(product_image($sp)) ?>" alt="">
+      <div><p class="pp-stats-kicker">Statistiques</p><h2><?= e($sp['name']) ?></h2></div>
+      <a class="pp-icon" href="<?= e(url('admin/produits')) ?>" aria-label="Fermer"><?= icon('x') ?></a>
+    </div>
+    <div class="pp-kpis">
+      <div><b><?= $sv ?></b><span>Vues de la page</span></div>
+      <div><b><?= $ss['orders'] ?></b><span>Commandes</span></div>
+      <div><b><?= e($conversion($ss['orders'], $sv)) ?></b><span>Conversion</span></div>
+      <div><b><?= $ss['qty'] ?></b><span>Unités vendues</span></div>
+      <div><b><?= e(fcfa($ss['amount'])) ?></b><span>Chiffre d'affaires</span></div>
+    </div>
+    <div class="pp-chart">
+      <div class="pp-chart-legend"><span><i class="lg-v"></i>Vues</span><span><i class="lg-q"></i>Unités vendues</span><em>14 derniers jours</em></div>
+      <div class="pp-bars">
+        <?php foreach ($statsDays as $d => $v): ?>
+          <div class="pp-day" title="<?= e(fr_date($d . ' 12:00:00', 'day')) ?> : <?= $v['views'] ?> vue(s), <?= $v['qty'] ?> vendu(s)">
+            <div class="pp-pair"><i class="b-v" style="height:<?= round($v['views'] / $maxV * 100, 1) ?>%"></i><i class="b-q" style="height:<?= round($v['qty'] / $maxV * 100, 1) ?>%"></i></div>
+            <small><?= (int) date('j', strtotime($d)) ?></small>
+          </div>
+        <?php endforeach; ?>
       </div>
     </div>
+    <?php if ($statsOrders): ?>
+      <p class="pp-sub">Dernières commandes de ce produit</p>
+      <div class="pp-orders">
+        <?php foreach ($statsOrders as $o): ?>
+          <a href="<?= e(url('admin/commandes', ['q' => $o['ref']])) ?>"><span><b><?= e($o['full_name']) ?></b><small><?= e($o['ref']) ?> · <?= e(fr_date($o['created_at'])) ?></small></span><span class="r"><b>× <?= (int) $o['quantity'] ?></b><?= status_pill($o['status']) ?></span></a>
+        <?php endforeach; ?>
+      </div>
+    <?php else: ?><p class="pp-sub">Aucune commande pour ce produit pour l'instant.</p><?php endif; ?>
+  </section>
+<?php endif; ?>
+
+<div class="pp-grid">
+  <?php foreach ($list as $p):
+      $ps = $sales[$p['id']] ?? ['orders' => 0, 'qty' => 0, 'amount' => 0]; $pv = $views[$p['id']] ?? 0;
+      [$stateLabel, $stateCls] = !$p['is_active'] ? ['Hors ligne', 'off'] : (!$p['is_listed'] ? ['Masqué', 'hidden'] : ['Publié', 'on']);
+      $hidden = ['f_q' => $q, 'f_vue' => $vue === 'tous' ? '' : $vue];
+      $hiddenInputs = csrf_field() . '<input type="hidden" name="id" value="' . $p['id'] . '"><input type="hidden" name="f_q" value="' . e($q) . '"><input type="hidden" name="f_vue" value="' . e($hidden['f_vue']) . '">'; ?>
+    <article class="pp-card" id="p<?= $p['id'] ?>">
+      <div class="pp-top">
+        <img class="pp-img" src="<?= e(product_image($p)) ?>" alt="">
+        <div class="pp-info">
+          <div class="pp-title-row"><h3><?= e($p['name']) ?></h3><span class="pp-state <?= $stateCls ?>"><?= $stateLabel ?></span></div>
+          <p class="pp-desc"><?= e(category_of($p['category'])['name']) ?><?= $p['weight'] ? ' · ' . e($p['weight']) : '' ?></p>
+          <div class="pp-price"><b><?= fcfa($p['price']) ?></b><?php if ($p['old_price'] !== null): ?><s><?= fcfa($p['old_price']) ?></s><?php endif; ?>
+            <span class="pp-stock <?= $p['stock'] === 0 ? 'out' : ($p['stock'] < 5 ? 'low' : '') ?>"><?= $p['stock'] === 0 ? 'Rupture' : 'Stock : ' . $p['stock'] ?></span></div>
+        </div>
+      </div>
+      <div class="pp-numbers">
+        <div><b><?= $pv ?></b><span>Vues</span></div>
+        <div><b><?= $ps['orders'] ?></b><span>Commandes</span></div>
+        <div><b><?= e($conversion($ps['orders'], $pv)) ?></b><span>Conversion</span></div>
+      </div>
+      <div class="pp-switches">
+        <form method="post"><?= $hiddenInputs ?><input type="hidden" name="action" value="toggle_listed">
+          <div><b>Boutique</b><span><?= $p['is_listed'] ? 'Visible' : 'Masqué' ?></span></div>
+          <button class="pp-switch <?= $p['is_listed'] ? 'on' : '' ?>" role="switch" aria-checked="<?= $p['is_listed'] ? 'true' : 'false' ?>" aria-label="Visible dans la boutique"></button>
+        </form>
+        <form method="post"><?= $hiddenInputs ?><input type="hidden" name="action" value="toggle_active">
+          <div><b>Page en ligne</b><span><?= $p['is_active'] ? 'Active' : 'Désactivée' ?></span></div>
+          <button class="pp-switch <?= $p['is_active'] ? 'on' : '' ?>" role="switch" aria-checked="<?= $p['is_active'] ? 'true' : 'false' ?>" aria-label="Page produit en ligne"></button>
+        </form>
+      </div>
+      <div class="pp-actions">
+        <a class="pp-btn primary" href="<?= e(url('admin/produits', ['edit' => $p['id']])) ?>"><?= icon('pencil') ?>Modifier</a>
+        <?php if ($p['is_active']): ?><a class="pp-btn" href="<?= e(url('produit/' . $p['slug'])) ?>" target="_blank"><?= icon('eye') ?>Voir</a><?php endif; ?>
+        <a class="pp-btn" href="<?= e(url('admin/produits', ['stats' => $p['id']])) ?>#stats"><?= icon('chart') ?>Statistiques</a>
+      </div>
+      <div class="pp-icons">
+        <form method="post"><?= $hiddenInputs ?><input type="hidden" name="action" value="duplicate"><button class="pp-icon" title="Dupliquer" aria-label="Dupliquer"><?= icon('copy') ?></button></form>
+        <form method="post"><?= $hiddenInputs ?><input type="hidden" name="action" value="toggle_listed"><button class="pp-icon" title="<?= $p['is_listed'] ? 'Masquer de la boutique' : 'Afficher dans la boutique' ?>" aria-label="<?= $p['is_listed'] ? 'Masquer de la boutique' : 'Afficher dans la boutique' ?>"><?= icon($p['is_listed'] ? 'eye-off' : 'eye') ?></button></form>
+        <form method="post"><?= $hiddenInputs ?><input type="hidden" name="action" value="toggle_active"><button class="pp-icon red" title="<?= $p['is_active'] ? 'Mettre la page hors ligne' : 'Remettre la page en ligne' ?>" aria-label="<?= $p['is_active'] ? 'Mettre la page hors ligne' : 'Remettre la page en ligne' ?>"><?= icon('power') ?></button></form>
+        <form method="post" data-confirm="Supprimer « <?= e($p['name']) ?> » ? Cette action est définitive."><?= $hiddenInputs ?><input type="hidden" name="action" value="delete"><button class="pp-icon red" title="Supprimer" aria-label="Supprimer"><?= icon('trash') ?></button></form>
+      </div>
+    </article>
   <?php endforeach; ?>
 </div>
 <?php if (!$list): ?><div class="panel empty-panel">Aucun produit trouvé.</div><?php endif; ?>
+<script>
+document.querySelectorAll("[data-toggle]").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var el = document.querySelector(b.getAttribute("data-toggle")); el.hidden = !el.hidden; b.classList.toggle("is-on", !el.hidden);
+    var i = el.querySelector("input:not([type=hidden])"); if (!el.hidden && i) i.focus();
+  });
+});
+</script>
 <?php admin_footer(); ?>
