@@ -1388,3 +1388,5 @@ html.dark .wa-button { background: #202c33; color: #53bdeb; }
 .wa-log-main small { font-size: .76rem; color: var(--muted-fg); }
 .wa-log-info { font-size: .8rem; color: #15803d; text-align: right; max-width: 50%; overflow-wrap: anywhere; }
 .wa-log-info.ko { color: #dc2626; }
+.wa-log > div { flex-wrap: wrap; }
+.wa-log-info.ko { max-width: none; flex-basis: 100%; text-align: left; font-family: ui-monospace, monospace; font-size: .74rem; background: rgba(239, 68, 68, .07); border-radius: 8px; padding: .4rem .55rem; }

@@ -806,9 +806,16 @@ function bbg_request(array $payload): array
     curl_close($ch);
     if ($body === false) return [false, 'Connexion impossible : ' . $err];
     $json = json_decode((string) $body, true);
-    $ok = $code >= 200 && $code < 300 && is_array($json) && ($json['status'] ?? '') === 'success';
-    $msg = is_array($json) ? (string) ($json['message'] ?? ($ok ? 'Envoyé' : '')) : '';
-    if ($msg === '') $msg = $ok ? 'Envoyé' : 'Réponse inattendue (HTTP ' . $code . ') : ' . mb_substr(trim(strip_tags((string) $body)), 0, 200);
+    $status = is_array($json) ? ($json['status'] ?? null) : null;
+    $ok = $code >= 200 && $code < 300 && is_array($json)
+        && (in_array($status, ['success', 'ok', 'sent', true, 1], true) || ($status === null && !isset($json['error']) && !isset($json['errors'])));
+    if ($ok) {
+        $msg = 'Envoyé';
+    } else {
+        // Réponse complète de BBG (sans le jeton) pour comprendre le refus.
+        $detail = is_array($json) ? json_encode($json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : trim(strip_tags((string) $body));
+        $msg = (is_array($json) && is_string($json['message'] ?? null) ? $json['message'] . ' — ' : '') . 'HTTP ' . $code . ' · ' . $detail;
+    }
     return [$ok, mb_substr($msg, 0, 480)];
 }
 
