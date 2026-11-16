@@ -13,10 +13,27 @@ $others = array_values(array_filter(get_posts(true, 4), fn($p) => $p['id'] !== $
 $others = array_slice($others, 0, 3);
 
 page_header([
-    'title' => $post['title'] . ' – AgroMina',
-    'description' => $post['excerpt'] ?: mb_substr(strip_tags($post['content']), 0, 160),
+    'title' => $post['title'] . ' | Blog AgroMina',
+    'description' => mb_strlen((string) $post['excerpt']) >= 100 ? $post['excerpt'] : trim($post['excerpt'] . ' ' . strip_tags($post['content'])),
     'active' => 'blog',
     'image' => media_url($post['image_url']),
+    'og_type' => 'article',
+    'canonical' => absolute_url('blog/' . $post['slug']),
+    'schema' => [
+        array_filter([
+            '@type' => 'BlogPosting',
+            'headline' => mb_substr($post['title'], 0, 110),
+            'description' => meta_excerpt((string) ($post['excerpt'] ?: strip_tags($post['content'])), 200),
+            'image' => $post['image_url'] ? [full_url(media_url($post['image_url']))] : null,
+            'datePublished' => date('c', strtotime($post['published_at'] . ' UTC')),
+            'dateModified' => date('c', strtotime(($post['updated_at'] ?? $post['published_at']) . ' UTC')),
+            'inLanguage' => 'fr-SN',
+            'author' => ['@type' => 'Organization', 'name' => 'AgroMina', 'url' => absolute_url('')],
+            'publisher' => ['@type' => 'Organization', 'name' => 'AgroMina', 'logo' => ['@type' => 'ImageObject', 'url' => full_url(img('logo.jpeg'))]],
+            'mainEntityOfPage' => absolute_url('blog/' . $post['slug']),
+        ]),
+        schema_breadcrumb([['Accueil', absolute_url('')], ['Blog', absolute_url('blog')], [$post['title'], absolute_url('blog/' . $post['slug'])]]),
+    ],
 ]);
 ?>
 <article class="container article">
@@ -28,7 +45,7 @@ page_header([
     <h1><?= e($post['title']) ?></h1>
     <?php if ($post['excerpt']): ?><p class="article-lead"><?= e($post['excerpt']) ?></p><?php endif; ?>
   </header>
-  <?php if ($post['image_url']): ?><img class="article-cover" src="<?= e(media_url($post['image_url'])) ?>" alt=""><?php endif; ?>
+  <?php if ($post['image_url']): ?><img class="article-cover" src="<?= e(media_url($post['image_url'])) ?>" alt="<?= e($post['title']) ?>" fetchpriority="high"><?php endif; ?>
   <div class="article-body"><?= render_post_content($post['content']) ?></div>
   <div class="article-cta">
     <p><b>Envie de goûter ?</b> Découvrez nos produits du Delta du Saloum.</p>
@@ -41,7 +58,7 @@ page_header([
     <div class="posts">
       <?php foreach ($others as $o): ?>
         <a class="card post" href="<?= e(url('blog/' . $o['slug'])) ?>">
-          <img src="<?= e(media_url($o['image_url'])) ?>" alt="" loading="lazy">
+          <img src="<?= e(media_url($o['image_url'])) ?>" alt="<?= e($o['title']) ?>" loading="lazy">
           <div class="post-body"><time><?= e(post_date($o)) ?></time><h3><?= e($o['title']) ?></h3></div>
         </a>
       <?php endforeach; ?>

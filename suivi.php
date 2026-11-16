@@ -24,6 +24,7 @@ $steps = ['nouvelle', 'confirmee', 'en_preparation', 'livree'];
 page_header([
     'title' => 'Suivre ma commande – AgroMina',
     'description' => "Suivez l'avancement de votre commande AgroMina avec votre référence et votre numéro de téléphone.",
+    'noindex' => true,
 ]);
 page_hero('Suivre ma commande', 'Indiquez la référence reçue à la validation et le numéro de téléphone utilisé.');
 ?>

@@ -20,11 +20,23 @@ const NAV = [
  */
 function page_header(array $o = []): void
 {
-    $title = $o['title'] ?? 'AgroMina – Le meilleur du terroir local, transformé avec passion';
-    $desc = $o['description'] ?? 'Céréales, jus naturels, produits halieutiques et artisanaux du Delta du Saloum. Commandez en ligne chez AgroMina.';
+    $title = $o['title'] ?? 'AgroMina – Produits locaux du Sénégal | Delta du Saloum';
+    $desc = $o['description'] ?? 'Boutique en ligne de produits locaux du Delta du Saloum : thiakry, arraw, fonio, jus de bissap et de bouye, poisson fumé, miel. Livraison partout au Sénégal.';
+    $desc = meta_excerpt($desc, 160);
     $active = $o['active'] ?? null;
     $user = current_user();
     $q = isset($_GET['q']) && is_string($_GET['q']) ? $_GET['q'] : '';
+    $canonical = $o['canonical'] ?? canonical_url($o['canonical_keep'] ?? []);
+    $ogImage = full_url($o['image'] ?? img('hero.jpg'));
+    $schemas = $o['schema'] ?? [];
+    if ($active === '') { // page d'accueil : identité de l'entreprise + recherche du site
+        $schemas[] = schema_organization();
+        $schemas[] = [
+            '@type' => 'WebSite', '@id' => absolute_url('') . '#site', 'name' => 'AgroMina', 'url' => absolute_url(''), 'inLanguage' => 'fr-SN',
+            'publisher' => ['@id' => absolute_url('') . '#organisation'],
+            'potentialAction' => ['@type' => 'SearchAction', 'target' => ['@type' => 'EntryPoint', 'urlTemplate' => absolute_url('boutique') . '?q={search_term_string}'], 'query-input' => 'required name=search_term_string'],
+        ];
+    }
     ?>
 <!doctype html>
 <html lang="fr">
@@ -33,13 +45,22 @@ function page_header(array $o = []): void
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title><?= e($title) ?></title>
   <meta name="description" content="<?= e($desc) ?>">
+  <?php if (!empty($o['noindex'])): ?><meta name="robots" content="noindex, follow"><?php else: ?><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1"><link rel="canonical" href="<?= e($canonical) ?>"><?php endif; ?>
+  <meta property="og:site_name" content="AgroMina">
+  <meta property="og:locale" content="fr_FR">
   <meta property="og:title" content="<?= e($title) ?>">
   <meta property="og:description" content="<?= e($desc) ?>">
-  <meta property="og:type" content="website">
-  <meta property="og:image" content="<?= e($o['image'] ?? img('hero.jpg')) ?>">
+  <meta property="og:type" content="<?= e($o['og_type'] ?? 'website') ?>">
+  <meta property="og:url" content="<?= e($canonical) ?>">
+  <meta property="og:image" content="<?= e($ogImage) ?>">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<?= e($title) ?>">
+  <meta name="twitter:description" content="<?= e($desc) ?>">
+  <meta name="twitter:image" content="<?= e($ogImage) ?>">
+  <?php if ($schemas): ?><script type="application/ld+json"><?= json_encode(['@context' => 'https://schema.org', '@graph' => $schemas], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script><?php endif; ?>
   <meta name="theme-color" content="#126333">
-  <?php if (!empty($o['noindex'])): ?><meta name="robots" content="noindex"><?php endif; ?>
   <link rel="icon" type="image/png" href="<?= e(img('favicon.png')) ?>">
+  <link rel="apple-touch-icon" href="<?= e(img('favicon.png')) ?>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -210,7 +231,7 @@ function product_card(array $p, array $attrs = []): string
     ob_start(); ?>
 <article class="pcard<?= $out ? ' is-out' : '' ?>" data-slug="<?= e($p['slug']) ?>"<?= $extra ?>>
   <a class="pcard-media" href="<?= $href ?>" tabindex="-1" aria-hidden="true">
-    <img src="<?= e(product_image($p)) ?>" alt="" loading="lazy">
+    <img src="<?= e(product_image($p)) ?>" alt="<?= e($p['name']) ?>" loading="lazy">
     <?php if ($out): ?><span class="pcard-out">Rupture de stock</span><?php endif; ?>
   </a>
   <div class="pcard-tags">

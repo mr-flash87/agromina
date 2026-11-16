@@ -843,3 +843,131 @@ function whatsapp_order_confirmation(array $o, bool $force = false): ?array
     if (!$ok) error_log('AgroMina WhatsApp ' . ($o['ref'] ?? '') . ' : ' . $info);
     return [$ok, $info];
 }
+
+// ---------------------------------------------------------------------------
+// Référencement Google (SEO)
+// ---------------------------------------------------------------------------
+
+/** Adresse canonique de la page courante (sans paramètres, sauf ceux listés). */
+function canonical_url(array $keep = []): string
+{
+    $path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
+    $base = rtrim((string) cfg('base_url', ''), '/');
+    if ($base !== '' && str_starts_with($path, $base)) $path = substr($path, strlen($base));
+    $path = preg_replace('/\.php$/', '', $path);
+    if ($path === '/index') $path = '/';
+    $query = [];
+    foreach ($keep as $k) {
+        if (isset($_GET[$k]) && is_string($_GET[$k]) && $_GET[$k] !== '') $query[$k] = $_GET[$k];
+    }
+    return absolute_url(ltrim($path, '/'), $query);
+}
+
+/** Convertit une adresse relative du site (/assets/…) en adresse complète. */
+function full_url(string $u): string
+{
+    if ($u === '' || preg_match('#^https?://#i', $u)) return $u;
+    $base = rtrim((string) cfg('base_url', ''), '/');
+    if ($base !== '' && str_starts_with($u, $base)) $u = substr($u, strlen($base));
+    return absolute_url(ltrim($u, '/'));
+}
+
+/** Extrait propre pour la balise description (≈ 155 caractères, coupé sur un mot). */
+function meta_excerpt(string $text, int $max = 155): string
+{
+    $text = trim(preg_replace('/\s+/u', ' ', strip_tags($text)));
+    if (mb_strlen($text) <= $max) return $text;
+    $cut = mb_substr($text, 0, $max - 1);
+    $sp = mb_strrpos($cut, ' ');
+    return rtrim($sp > 80 ? mb_substr($cut, 0, $sp) : $cut, " ,;:.") . '…';
+}
+
+/** Données structurées de l'entreprise (boutique en ligne) pour Google. */
+function schema_organization(): array
+{
+    $same = array_values(array_filter([(string) cfg('facebook_url', ''), (string) cfg('instagram_url', '')], fn($u) => preg_match('#^https?://#', $u)));
+    $org = [
+        '@type' => 'OnlineStore',
+        '@id' => absolute_url('') . '#organisation',
+        'name' => 'AgroMina',
+        'alternateName' => 'AgroMina Sénégal',
+        'url' => absolute_url(''),
+        'logo' => full_url(img('logo.jpeg')),
+        'image' => full_url(img('hero.jpg')),
+        'description' => 'AgroMina transforme et vend en ligne les produits locaux du Delta du Saloum : céréales, jus naturels, fruits transformés, produits halieutiques et artisanaux. Livraison partout au Sénégal.',
+        'address' => ['@type' => 'PostalAddress', 'addressRegion' => 'Delta du Saloum', 'addressCountry' => 'SN'],
+        'areaServed' => ['@type' => 'Country', 'name' => 'Sénégal'],
+        'currenciesAccepted' => 'XOF',
+        'paymentAccepted' => 'Espèces à la livraison, Wave, Orange Money',
+    ];
+    $phone = (string) cfg('contact_phone', '');
+    $mail = (string) cfg('contact_email', '');
+    if ($phone !== '' && !str_contains($phone, '00 000')) $org['telephone'] = $phone;
+    if ($mail !== '') $org['email'] = $mail;
+    if ($same) $org['sameAs'] = $same;
+    return $org;
+}
+
+function schema_breadcrumb(array $items): array
+{
+    $list = [];
+    foreach (array_values($items) as $i => [$name, $u]) {
+        $list[] = ['@type' => 'ListItem', 'position' => $i + 1, 'name' => $name, 'item' => $u];
+    }
+    return ['@type' => 'BreadcrumbList', 'itemListElement' => $list];
+}
+
+/** Fiche produit enrichie (prix, stock, livraison, retours) : résultats enrichis Google. */
+function schema_product(array $p): array
+{
+    $u = absolute_url('produit/' . $p['slug']);
+    $cat = category_of($p['category']);
+    $offer = [
+        '@type' => 'Offer',
+        'url' => $u,
+        'price' => (string) (int) $p['price'],
+        'priceCurrency' => 'XOF',
+        'availability' => $p['stock'] > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+        'itemCondition' => 'https://schema.org/NewCondition',
+        'seller' => ['@type' => 'Organization', 'name' => 'AgroMina', 'url' => absolute_url('')],
+        'shippingDetails' => [
+            '@type' => 'OfferShippingDetails',
+            'shippingRate' => ['@type' => 'MonetaryAmount', 'value' => (string) (int) cfg('delivery_fee', 1500), 'currency' => 'XOF'],
+            'shippingDestination' => ['@type' => 'DefinedRegion', 'addressCountry' => 'SN'],
+            'deliveryTime' => [
+                '@type' => 'ShippingDeliveryTime',
+                'handlingTime' => ['@type' => 'QuantitativeValue', 'minValue' => 0, 'maxValue' => 1, 'unitCode' => 'DAY'],
+                'transitTime' => ['@type' => 'QuantitativeValue', 'minValue' => 1, 'maxValue' => 3, 'unitCode' => 'DAY'],
+            ],
+        ],
+        'hasMerchantReturnPolicy' => [
+            '@type' => 'MerchantReturnPolicy',
+            'applicableCountry' => 'SN',
+            'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
+            'merchantReturnDays' => 2,
+            'returnFees' => 'https://schema.org/FreeReturn',
+        ],
+    ];
+    if (!empty($p['promo_ends_at'])) $offer['priceValidUntil'] = date('Y-m-d', strtotime((string) $p['promo_ends_at']));
+    $prod = [
+        '@type' => 'Product',
+        '@id' => $u . '#produit',
+        'name' => $p['name'],
+        'image' => [full_url(product_image($p))],
+        'description' => meta_excerpt((string) ($p['description'] ?: $p['name'] . ' – produit local du Delta du Saloum, Sénégal.'), 500),
+        'sku' => $p['slug'],
+        'brand' => ['@type' => 'Brand', 'name' => 'AgroMina'],
+        'category' => $cat['name'],
+        'countryOfOrigin' => 'SN',
+        'offers' => $offer,
+    ];
+    if (!empty($p['weight'])) $prod['size'] = $p['weight'];
+    return $prod;
+}
+
+/** Premier titre de la liste qui tient dans la limite affichée par Google (≈ 65 caractères). */
+function seo_title(string ...$candidates): string
+{
+    foreach ($candidates as $t) if (mb_strlen($t) <= 65) return $t;
+    return end($candidates);
+}

@@ -41,9 +41,15 @@ foreach ($all as $i => $p) {
 $total = count($all);
 $hasFilter = $q !== '' || $cat || $promo || $nouveau || $best || $dispo || $max || $tri;
 
+$catInfo = $cat ? category_of($cat) : null;
 page_header([
-    'title' => 'Boutique – AgroMina',
-    'description' => 'Tous les produits AgroMina : céréales, jus, fruits transformés, produits halieutiques et artisanaux.',
+    'title' => $catInfo ? seo_title($catInfo['name'] . ' du Sénégal – Achat en ligne | AgroMina', $catInfo['name'] . ' du Sénégal | AgroMina', $catInfo['name'] . ' | AgroMina')
+        : 'Boutique en ligne de produits locaux sénégalais | AgroMina',
+    'description' => $catInfo
+        ? $catInfo['name'] . ' du Delta du Saloum à commander en ligne chez AgroMina. ' . ($catInfo['description'] ?? '') . ' Livraison partout au Sénégal, paiement à la livraison.'
+        : 'Tous les produits AgroMina : céréales locales, jus naturels, fruits transformés, poisson fumé et produits artisanaux du Delta du Saloum. Livraison partout au Sénégal.',
+    'canonical_keep' => ['cat'],
+    'noindex' => $q !== '' || $promo || $nouveau || $best || $dispo || $max || $tri, // pages de recherche/filtres : pas de doublons dans Google
     'active' => 'boutique',
     'body_class' => 'page-shop',
 ]);
@@ -70,7 +76,7 @@ page_header([
     <div class="cat-chips" role="radiogroup" aria-label="Catégories">
       <label class="cat-chip<?= $cat === '' ? ' is-active' : '' ?>"><input type="radio" name="cat" value="" <?= $cat === '' ? 'checked' : '' ?>><span class="cat-chip-all"><?= icon('store') ?></span>Tout <small><?= $total ?></small></label>
       <?php foreach (categories() as $slug => $c): ?>
-        <label class="cat-chip<?= $cat === $slug ? ' is-active' : '' ?>"><input type="radio" name="cat" value="<?= e($slug) ?>" <?= $cat === $slug ? 'checked' : '' ?>><img src="<?= e(media_url($c['image'])) ?>" alt="" loading="lazy"><?= e($c['short']) ?> <small><?= $counts[$slug] ?? 0 ?></small></label>
+        <label class="cat-chip<?= $cat === $slug ? ' is-active' : '' ?>"><input type="radio" name="cat" value="<?= e($slug) ?>" <?= $cat === $slug ? 'checked' : '' ?>><img src="<?= e(media_url($c['image'])) ?>" alt="<?= e($c['name']) ?>" loading="lazy"><?= e($c['short']) ?> <small><?= $counts[$slug] ?? 0 ?></small></label>
       <?php endforeach; ?>
     </div>
     <div class="shop-tools">
@@ -111,7 +117,7 @@ page_header([
       $n = count(array_filter($items, $visible)); ?>
     <section class="shop-section" data-section="<?= e($slug) ?>" <?= $n ? '' : 'hidden' ?>>
       <header class="shop-section-head">
-        <img src="<?= e(media_url($c['image'])) ?>" alt="" loading="lazy">
+        <img src="<?= e(media_url($c['image'])) ?>" alt="<?= e($c['name']) ?>" loading="lazy">
         <div><h2><?= e($c['name']) ?></h2><p><span data-section-count><?= $n ?></span> produit<?= $n > 1 ? 's' : '' ?></p></div>
       </header>
       <div class="grid-products shop-grid">

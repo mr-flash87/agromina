@@ -9,7 +9,7 @@ page_header(['active' => '']);
 ?>
 <section class="container">
   <div class="hero">
-    <img src="<?= e(img('hero.jpg')) ?>" alt="Produits AgroMina : thiakry, bissap, bouye, confiture de mangue" width="1920" height="832">
+    <img src="<?= e(img('hero.jpg')) ?>" alt="Produits AgroMina : thiakry, bissap, bouye, confiture de mangue" width="1920" height="832" fetchpriority="high">
     <div class="hero-fade"></div>
     <div class="hero-content">
       <div class="hero-inner">
@@ -107,7 +107,7 @@ page_header(['active' => '']);
   <div class="posts">
     <?php foreach ($latest as $post): ?>
       <a href="<?= e(url('blog/' . $post['slug'])) ?>" class="card post">
-        <img src="<?= e(media_url($post['image_url'])) ?>" alt="" loading="lazy">
+        <img src="<?= e(media_url($post['image_url'])) ?>" alt="<?= e($post['title']) ?>" loading="lazy">
         <div class="post-body"><time><?= e(post_date($post)) ?></time><h3><?= e($post['title']) ?></h3></div>
       </a>
     <?php endforeach; ?>

@@ -20,10 +20,26 @@ $out = $p['stock'] === 0;
 $low = !$out && $p['stock'] < 5;
 $disc = discount_pct($p);
 
+$seoDesc = trim((string) $p['description']);
+$seoDesc = ($seoDesc !== '' ? rtrim(meta_excerpt($seoDesc, 105), '.…') . '. ' : $p['name'] . ', produit local du Delta du Saloum. ')
+    . fcfa($p['price']) . ', livraison partout au Sénégal.';
 page_header([
-    'title' => $p['name'] . ' – AgroMina',
-    'description' => $p['description'] ?: 'Produit local du Delta du Saloum.',
+    'title' => seo_title(
+        $p['name'] . ($p['weight'] ? ' (' . $p['weight'] . ')' : '') . ' – ' . $cat['short'] . ' du Sénégal | AgroMina',
+        $p['name'] . ' – ' . $cat['short'] . ' du Sénégal | AgroMina',
+        $p['name'] . ' – Sénégal | AgroMina',
+        $p['name'] . ' | AgroMina'
+    ),
+    'description' => $seoDesc,
+    'image' => product_image($p),
+    'og_type' => 'product',
+    'canonical' => absolute_url('produit/' . $p['slug']),
     'body_class' => 'body-has-buybar',
+    'schema' => [
+        schema_product($p),
+        schema_breadcrumb([['Accueil', absolute_url('')], ['Boutique', absolute_url('boutique')],
+            [$cat['name'], absolute_url('boutique', ['cat' => $p['category']])], [$p['name'], absolute_url('produit/' . $p['slug'])]]),
+    ],
 ]);
 ?>
 <div class="has-buybar">
@@ -36,7 +52,7 @@ page_header([
 
     <div class="product">
       <div class="product-media">
-        <img src="<?= e(product_image($p)) ?>" alt="<?= e($p['name']) ?>">
+        <img src="<?= e(product_image($p)) ?>" alt="<?= e($p['name'] . ($p['weight'] ? ' – ' . $p['weight'] : '') . ', AgroMina') ?>" fetchpriority="high">
         <div class="pcard-tags">
           <?php if ($disc): ?><span class="tag tag-accent">−<?= $disc ?> %</span><?php endif; ?>
           <?php if ($p['is_new']): ?><span class="tag tag-primary">Nouveau</span><?php endif; ?>
