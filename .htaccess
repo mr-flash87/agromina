@@ -21,6 +21,7 @@ ErrorDocument 404 /404.php
 
   # /admin -> /admin/
   RewriteRule ^admin$ admin/ [L,R=301]
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
 
   # Adresses sans .php : /boutique -> boutique.php
   RewriteCond %{REQUEST_FILENAME} !-f
