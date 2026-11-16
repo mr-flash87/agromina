@@ -14,3 +14,4 @@ includes/.schema-v4
 uploads/categories/*
 !uploads/categories/.gitkeep
 includes/.schema-v5
+includes/.schema-v6

@@ -4,6 +4,13 @@ require __DIR__ . '/_layout.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $id = (int) ($_POST['id'] ?? 0);
+    if (($_POST['action'] ?? '') === 'resend_wa') {
+        $row = db()->prepare('SELECT * FROM orders WHERE id = ?');
+        $row->execute([$id]);
+        $res = ($order = $row->fetch()) ? whatsapp_order_confirmation($order, true) : [false, 'Commande introuvable'];
+        flash($res[0] ? 'success' : 'error', $res[0] ? 'WhatsApp envoyé au client' : 'Échec de l\'envoi WhatsApp : ' . $res[1]);
+        redirect(url('admin/commandes', ['statut' => $_POST['f_statut'] ?? '', 'q' => $_POST['f_q'] ?? '']) . '#o' . $id);
+    }
     $status = (string) ($_POST['status'] ?? '');
     if ($id && isset(ORDER_STATUSES[$status])) {
         $pdo = db();
@@ -30,7 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $row->execute([$id]);
             $order = $row->fetch();
             $mailed = $order && email_order_update($order);
-            $_SESSION['notify_order'] = $id; // propose d'envoyer le message WhatsApp / SMS
             flash('success', 'Statut mis à jour' . ($mailed ? ' · e-mail envoyé au client' : ''));
         } else {
             flash('success', 'Statut mis à jour');
@@ -60,6 +66,13 @@ $st = db()->prepare($sql);
 $st->execute($args);
 $orders = $st->fetchAll();
 $items = load_order_items(array_map(fn($o) => (int) $o['id'], $orders));
+// Dernier envoi WhatsApp par commande (journal BBG SMS)
+$waLog = [];
+$waReady = whatsapp_settings()['token'] !== '';
+if ($orders) {
+    $ids = implode(',', array_map(fn($o) => (int) $o['id'], $orders));
+    foreach (db()->query("SELECT order_id, ok, info FROM message_log WHERE order_id IN ($ids) ORDER BY id") as $r) $waLog[(int) $r['order_id']] = $r;
+}
 
 $groups = [];
 foreach ($orders as $o) {
@@ -76,12 +89,6 @@ $dayLabel = static function (string $k) use ($today, $yesterday) {
 };
 
 admin_header('Commandes', 'commandes');
-?>
-<?php
-$notifyId = (int) ($_SESSION['notify_order'] ?? 0);
-unset($_SESSION['notify_order']);
-$notify = null;
-if ($notifyId) { $nst = db()->prepare('SELECT * FROM orders WHERE id = ?'); $nst->execute([$notifyId]); $notify = $nst->fetch() ?: null; }
 ?>
 <?php
 admin_title('Commandes');
@@ -106,7 +113,7 @@ admin_title('Commandes');
     <?php else: ?>
       <div class="orders-stack">
         <?php foreach ($list as $o): $its = $items[(int) $o['id']] ?? []; $n = array_sum(array_column($its, 'quantity')); ?>
-          <details class="panel order" id="o<?= (int) $o['id'] ?>" <?= ($q !== '' && count($orders) === 1) || ($notify && (int) $notify['id'] === (int) $o['id']) ? 'open' : '' ?>>
+          <details class="panel order" id="o<?= (int) $o['id'] ?>" <?= ($q !== '' && count($orders) === 1) ? 'open' : '' ?>>
             <summary>
               <div style="min-width:0">
                 <p class="nm"><?= e($o['full_name']) ?> <?= icon('chevron-down') ?></p>
@@ -115,26 +122,17 @@ admin_title('Commandes');
               <div class="r"><b><?= fcfa((int) $o['total']) ?></b><?= status_pill($o['status']) ?></div>
             </summary>
             <div class="order-body">
-              <?php if ($notify && (int) $notify['id'] === (int) $o['id']): ?>
-  <div class="notify-card">
-    <div class="notify-text"><span class="notify-ic"><?= icon('bell') ?></span><div><b>Prévenir <?= e($notify['full_name']) ?></b><small>Commande <?= e($notify['ref']) ?> · <?= e(ORDER_STATUSES[$notify['status']]) ?></small></div></div>
-    <p class="notify-preview"><?= nl2br(e(order_message($notify))) ?></p>
-    <div class="notify-actions">
-      <a class="nbtn wa" href="<?= e(order_whatsapp_link($notify)) ?>" target="_blank" rel="noopener"><?= icon('whatsapp') ?>WhatsApp</a>
-      <a class="nbtn" href="<?= e(order_sms_link($notify)) ?>"><?= icon('message') ?>SMS</a>
-      <button type="button" class="nbtn ghost" data-dismiss-notify>Plus tard</button>
-    </div>
-  </div>
-              <?php endif; ?>
               <div class="contact-chips">
                 <a href="tel:<?= e($o['phone']) ?>"><?= icon('phone') ?><?= e($o['phone']) ?></a>
                 <a class="wa" href="https://wa.me/<?= e(phone_digits($o['phone'])) ?>" target="_blank" rel="noopener">WhatsApp</a>
               </div>
-              <div class="msg-row">
-                <span class="muted">Envoyer le message « <?= e(ORDER_STATUSES[$o['status']]) ?> » :</span>
-                <a class="nbtn wa sm" href="<?= e(order_whatsapp_link($o)) ?>" target="_blank" rel="noopener"><?= icon('whatsapp') ?>WhatsApp</a>
-                <a class="nbtn sm" href="<?= e(order_sms_link($o)) ?>"><?= icon('message') ?>SMS</a>
-                <?php if ($o['email']): ?><a class="nbtn sm" href="mailto:<?= e($o['email']) ?>?subject=<?= rawurlencode('AgroMina – commande ' . $o['ref']) ?>&amp;body=<?= rawurlencode(order_message($o)) ?>"><?= icon('mail') ?>E-mail</a><?php endif; ?>
+              <?php $wl = $waLog[(int) $o['id']] ?? null; ?>
+              <div class="wa-line">
+                <span class="wa-dot <?= $wl ? ($wl['ok'] ? 'ok' : 'ko') : '' ?>"></span>
+                <span><?= $wl ? ($wl['ok'] ? 'WhatsApp de confirmation envoyé' : 'WhatsApp non envoyé : ' . e($wl['info'])) : 'WhatsApp de confirmation : pas encore envoyé' ?></span>
+                <?php if ($waReady && (!$wl || !$wl['ok'])): ?>
+                  <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="resend_wa"><input type="hidden" name="id" value="<?= (int) $o['id'] ?>"><input type="hidden" name="f_statut" value="<?= e($filter) ?>"><input type="hidden" name="f_q" value="<?= e($q) ?>"><button class="nbtn sm"><?= icon('whatsapp') ?><?= $wl ? 'Réessayer' : 'Envoyer' ?></button></form>
+                <?php endif; ?>
               </div>
               <p class="muted"><?= e($o['address']) ?><?= $o['city'] ? ', ' . e($o['city']) : '' ?> · <?= e($o['payment_method']) ?><?= $o['email'] ? ' · ' . e($o['email']) : '' ?></p>
               <?php if ($o['note']): ?><p class="note-box">Note : <?= e($o['note']) ?></p><?php endif; ?>
@@ -167,8 +165,4 @@ admin_title('Commandes');
   </section>
 <?php endforeach; ?>
 <?php if (!$groups): ?><div class="panel empty-panel">Aucune commande trouvée.</div><?php endif; ?>
-<script>
-document.querySelectorAll("[data-dismiss-notify]").forEach(function (b) { b.addEventListener("click", function () { b.closest(".notify-card").remove(); }); });
-document.querySelectorAll(".notify-card .nbtn[href]").forEach(function (a) { a.addEventListener("click", function () { setTimeout(function () { var c = a.closest(".notify-card"); if (c) c.remove(); }, 400); }); });
-</script>
 <?php admin_footer(); ?>

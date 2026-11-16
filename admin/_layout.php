@@ -40,7 +40,7 @@ function admin_header(string $title, string $active): void
       <a href="<?= e(url('admin/promotions')) ?>" class="<?= $active === 'promotions' ? 'is-active' : '' ?>">Promos</a>
       <a href="<?= e(url('admin/blog')) ?>" class="<?= $active === 'blog' ? 'is-active' : '' ?>">Blog</a>
       <a href="<?= e(url('admin/messages')) ?>" class="<?= $active === 'messages' ? 'is-active' : '' ?>">Messages</a>
-      <?php if (is_super($ADMIN)): ?><a href="<?= e(url('admin/equipe')) ?>" class="<?= $active === 'equipe' ? 'is-active' : '' ?>">Équipe</a><?php endif; ?>
+      <?php if (is_super($ADMIN)): ?><a href="<?= e(url('admin/whatsapp')) ?>" class="<?= $active === 'whatsapp' ? 'is-active' : '' ?>">WhatsApp</a><a href="<?= e(url('admin/equipe')) ?>" class="<?= $active === 'equipe' ? 'is-active' : '' ?>">Équipe</a><?php endif; ?>
     </nav>
     <div class="a-tools">
       <button type="button" class="a-round" data-theme-toggle aria-label="Changer de thème"><?= icon('moon') ?></button>
@@ -78,7 +78,7 @@ function admin_footer(): void
   <?php foreach (ADMIN_TABS as $k => [$label, $ic, $path]): ?>
     <a href="<?= e(url($path)) ?>" class="<?= $active === $k ? 'is-active' : '' ?>"><?= icon($ic) ?><?= e($label) ?></a>
   <?php endforeach; ?>
-  <button type="button" data-sheet-open class="<?= in_array($active, ['equipe', 'messages', 'blog', 'promotions', 'categories', 'compte'], true) ? 'is-active' : '' ?>"><?= icon('more') ?>Plus</button>
+  <button type="button" data-sheet-open class="<?= in_array($active, ['equipe', 'messages', 'blog', 'promotions', 'categories', 'compte', 'whatsapp'], true) ? 'is-active' : '' ?>"><?= icon('more') ?>Plus</button>
 </nav>
 
 <div class="sheet-backdrop" data-sheet hidden>
@@ -92,7 +92,7 @@ function admin_footer(): void
       <a class="sheet-item" href="<?= e(url('admin/promotions')) ?>"><?= icon('tag') ?>Promotions</a>
       <a class="sheet-item" href="<?= e(url('admin/blog')) ?>"><?= icon('book') ?>Blog</a>
       <a class="sheet-item" href="<?= e(url('admin/messages')) ?>"><?= icon('inbox') ?>Messages<?= $unread ? ' (' . (int) $unread . ')' : '' ?></a>
-      <?php if (is_super($ADMIN)): ?><a class="sheet-item" href="<?= e(url('admin/equipe')) ?>"><?= icon('shield-check') ?>Équipe</a><?php endif; ?>
+      <?php if (is_super($ADMIN)): ?><a class="sheet-item" href="<?= e(url('admin/whatsapp')) ?>"><?= icon('whatsapp') ?>WhatsApp auto</a><a class="sheet-item" href="<?= e(url('admin/equipe')) ?>"><?= icon('shield-check') ?>Équipe</a><?php endif; ?>
       <button type="button" class="sheet-item" data-theme-toggle><?= icon('moon') ?>Mode sombre</button>
       <a class="sheet-item" href="<?= e(url('')) ?>" target="_blank"><?= icon('store') ?>Voir la boutique</a>
       <a class="sheet-item" href="<?= e(url('admin/compte')) ?>"><?= icon('user') ?>Mon compte</a>

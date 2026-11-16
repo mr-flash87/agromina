@@ -563,6 +563,7 @@ function ensure_schema(): void
         'v3' => ['promotions.sql', 'promotions-seed.sql'],
         'v4' => ['categories.sql', 'categories-seed.sql'],
         'v5' => 'migrate_v5',
+        'v6' => 'migrate_v6',
     ];
     foreach ($steps as $version => $files) {
         $marker = __DIR__ . '/.schema-' . $version;
@@ -715,4 +716,130 @@ function email_order_update(array $o, ?string $status = null): bool
     $headers = "Content-Type: text/plain; charset=UTF-8\r\nFrom: =?UTF-8?B?" . base64_encode('AgroMina') . "?= <$sender>";
     if ($from !== '' && filter_var($from, FILTER_VALIDATE_EMAIL)) $headers .= "\r\nReply-To: $from";
     return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', order_message($o, $status), $headers);
+}
+
+
+// ---------------------------------------------------------------------------
+// Réglages modifiables depuis l'admin + WhatsApp automatique via BBG SMS
+// ---------------------------------------------------------------------------
+
+function migrate_v6(): void
+{
+    db()->exec('CREATE TABLE IF NOT EXISTS settings (
+        k VARCHAR(64) NOT NULL PRIMARY KEY,
+        v TEXT NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+    db()->exec('CREATE TABLE IF NOT EXISTS message_log (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        order_id INT UNSIGNED NULL DEFAULT NULL,
+        channel VARCHAR(20) NOT NULL,
+        recipient VARCHAR(30) NOT NULL,
+        ok TINYINT(1) NOT NULL DEFAULT 0,
+        info VARCHAR(500) NOT NULL DEFAULT \'\',
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY message_log_order_idx (order_id),
+        CONSTRAINT message_log_order_fk FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+}
+
+function setting(string $key, string $default = ''): string
+{
+    static $cache = null;
+    if ($cache === null) {
+        $cache = [];
+        try {
+            foreach (db()->query('SELECT k, v FROM settings') as $r) $cache[$r['k']] = $r['v'];
+        } catch (Throwable) {
+        }
+    }
+    return $cache[$key] ?? $default;
+}
+
+function set_setting(string $key, string $value): void
+{
+    db()->prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)')->execute([$key, $value]);
+}
+
+const BBG_ENDPOINT = 'https://bbgsmsapp.betterbegoing.com/api/http/sms/send';
+
+function whatsapp_settings(): array
+{
+    return [
+        'enabled' => setting('wa_enabled', '0') === '1',
+        'token' => setting('wa_token', (string) cfg('bbg_api_token', '')),
+        'template' => setting('wa_template', 'agromina_commande_confirmee'),
+        'language' => setting('wa_language', 'fr'),
+        'from' => setting('wa_from', ''),
+    ];
+}
+
+/** Variables du modèle « agromina_commande_confirmee » : prénom, référence, montant, paiement, ville. */
+function whatsapp_order_vars(array $o): array
+{
+    $first = trim(explode(' ', trim((string) $o['full_name']))[0] ?? '');
+    $city = trim((string) ($o['city'] ?? ''));
+    return [
+        $first !== '' ? $first : 'cher client',
+        (string) $o['ref'],
+        fcfa((int) $o['total']),
+        (string) ($o['payment_method'] ?: 'Paiement à la livraison'),
+        $city !== '' ? $city : 'à votre adresse',
+    ];
+}
+
+/** Appel à l'API BBG SMS. Retourne [succès, message lisible]. */
+function bbg_request(array $payload): array
+{
+    if (!function_exists('curl_init')) return [false, 'Extension cURL indisponible sur le serveur'];
+    $ch = curl_init((string) cfg('bbg_endpoint', BBG_ENDPOINT));
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT => 20,
+    ]);
+    $body = curl_exec($ch);
+    $err = curl_error($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+    if ($body === false) return [false, 'Connexion impossible : ' . $err];
+    $json = json_decode((string) $body, true);
+    $ok = $code >= 200 && $code < 300 && is_array($json) && ($json['status'] ?? '') === 'success';
+    $msg = is_array($json) ? (string) ($json['message'] ?? ($ok ? 'Envoyé' : '')) : '';
+    if ($msg === '') $msg = $ok ? 'Envoyé' : 'Réponse inattendue (HTTP ' . $code . ') : ' . mb_substr(trim(strip_tags((string) $body)), 0, 200);
+    return [$ok, mb_substr($msg, 0, 480)];
+}
+
+/** Envoie le modèle WhatsApp au numéro donné (format international, ex. 221771234567). */
+function whatsapp_send_template(string $phone, array $vars): array
+{
+    $cfg = whatsapp_settings();
+    if ($cfg['token'] === '') return [false, 'Jeton API BBG SMS non renseigné'];
+    $payload = [
+        'api_token' => $cfg['token'],
+        'recipient' => phone_digits($phone),
+        'type' => 'whatsapp_template',
+        'template' => $cfg['template'],
+        'language' => $cfg['language'],
+    ];
+    foreach (array_values($vars) as $i => $v) $payload['var' . ($i + 1)] = $v;
+    if ($cfg['from'] !== '') $payload['whatsapp_from'] = phone_digits($cfg['from']);
+    return bbg_request($payload);
+}
+
+/** WhatsApp « commande confirmée » envoyé automatiquement au client, avec trace dans le journal. */
+function whatsapp_order_confirmation(array $o, bool $force = false): ?array
+{
+    if (!$force && !whatsapp_settings()['enabled']) return null;
+    [$ok, $info] = whatsapp_send_template($o['phone'], whatsapp_order_vars($o));
+    try {
+        db()->prepare('INSERT INTO message_log (order_id, channel, recipient, ok, info) VALUES (?, ?, ?, ?, ?)')
+            ->execute([$o['id'] ?? null, 'whatsapp', phone_digits($o['phone']), $ok ? 1 : 0, $info]);
+    } catch (Throwable $e) {
+        error_log('AgroMina message_log: ' . $e->getMessage());
+    }
+    if (!$ok) error_log('AgroMina WhatsApp ' . ($o['ref'] ?? '') . ' : ' . $info);
+    return [$ok, $info];
 }

@@ -172,4 +172,13 @@ try {
 } catch (Throwable $e) {
     error_log('AgroMina push: ' . $e->getMessage());
 }
+// WhatsApp automatique « commande confirmée » au client (BBG SMS), si activé dans l'admin.
+try {
+    $oid = db()->prepare('SELECT id FROM orders WHERE ref = ?');
+    $oid->execute([$ref]);
+    whatsapp_order_confirmation(['id' => (int) $oid->fetchColumn() ?: null, 'ref' => $ref, 'full_name' => $fullName, 'phone' => $phone,
+        'city' => $city, 'total' => $total, 'payment_method' => $payment]);
+} catch (Throwable $e) {
+    error_log('AgroMina WhatsApp: ' . $e->getMessage());
+}
 exit;
