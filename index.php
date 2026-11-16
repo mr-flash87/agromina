@@ -5,7 +5,21 @@ $products = get_products();
 $best = array_slice(array_values(array_filter($products, fn($p) => $p['best_seller'])), 0, 4);
 $news = array_slice(array_values(array_filter($products, fn($p) => $p['is_new'])), 0, 4);
 
-page_header(['active' => '']);
+// Questions fréquentes : contenu utile aux visiteurs et aux recherches Google (« produits locaux Sénégal », « livraison »…)
+$faq = [
+    ["Qu'est-ce qu'AgroMina ?", "AgroMina transforme et vend en ligne des produits locaux du Delta du Saloum, au Sénégal : céréales prêtes à cuisiner (thiakry, arraw, fonio), jus naturels de bissap, de bouye et de gingembre, fruits transformés, poisson fumé, crevettes séchées, miel des mangroves et sel du Saloum."],
+    ['Livrez-vous partout au Sénégal ?', 'Oui. Nous livrons à Dakar, Kaolack, Fatick, Thiès, Saint-Louis, Ziguinchor et dans toutes les villes du Sénégal. Les frais de livraison sont de ' . fcfa((int) cfg('delivery_fee', 1500)) . ' et nous vous appelons avant chaque livraison.'],
+    ['Comment payer ma commande ?', 'Vous payez en espèces à la livraison, après avoir vérifié vos produits, ou par Wave et Orange Money. Aucune donnée bancaire n\'est demandée sur le site.'],
+    ['Faut-il créer un compte pour commander ?', 'Non. Ajoutez vos produits au panier, indiquez votre nom, votre numéro WhatsApp et votre adresse, et c\'est fait. Vous pouvez aussi commander directement sur WhatsApp.'],
+    ['Les produits sont-ils naturels ?', 'Nos produits sont transformés à partir de matières premières locales, selon des recettes traditionnelles, par des producteurs et des femmes transformatrices du Delta du Saloum. Nos jus sont sans conservateur.'],
+];
+page_header([
+    'active' => '',
+    'schema' => [[
+        '@type' => 'FAQPage',
+        'mainEntity' => array_map(fn($f) => ['@type' => 'Question', 'name' => $f[0], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]]], $faq),
+    ]],
+]);
 ?>
 <section class="container">
   <div class="hero">
@@ -97,6 +111,15 @@ page_header(['active' => '']);
         <blockquote>« <?= e($t) ?> »</blockquote>
         <figcaption><?= e($n) ?> <span>· <?= e($v) ?></span></figcaption>
       </figure>
+    <?php endforeach; ?>
+  </div>
+</section>
+
+<section class="container section">
+  <div class="section-head"><h2 class="section-title">Questions fréquentes</h2></div>
+  <div class="faq">
+    <?php foreach ($faq as [$fq, $fa]): ?>
+      <details class="card faq-item"><summary><?= e($fq) ?><?= icon('chevron-down') ?></summary><p><?= e($fa) ?></p></details>
     <?php endforeach; ?>
   </div>
 </section>
