@@ -7,7 +7,7 @@ const VERSION = "am-v5";
 const PAGES = "am-pages-" + VERSION;
 const ASSETS = "am-assets-" + VERSION;
 const FONTS = "am-fonts-" + VERSION;
-const scope = self.registration.scope; // ex. https://agromina.pixelpub.online/
+const scope = self.registration.scope; // ex. https://agrominasn.com/
 const PRECACHE = ["assets/css/style.css", "assets/js/app.js", "assets/img/logo.jpeg", "assets/img/admin-icon-192.png", "assets/img/favicon.png"];
 
 self.addEventListener("install", (event) => {

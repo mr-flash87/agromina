@@ -9,6 +9,13 @@ ErrorDocument 404 /404.php
   # Si le site est dans un sous-dossier (ex. /boutique), remplacez / par /boutique/
   RewriteBase /
 
+  # Domaine principal : agrominasn.com. L'ancien sous-domaine et www y sont redirigés (301, bon pour Google).
+  RewriteCond %{HTTP_HOST} ^(www\.agrominasn\.com|agromina\.pixelpub\.online)$ [NC]
+  RewriteCond %{HTTPS} =on
+  RewriteRule ^ https://agrominasn.com%{REQUEST_URI} [L,R=301]
+  RewriteCond %{HTTP_HOST} ^(www\.agrominasn\.com|agromina\.pixelpub\.online)$ [NC]
+  RewriteRule ^ http://agrominasn.com%{REQUEST_URI} [L,R=301]
+
   # Forcer HTTPS : retirez les # des deux lignes suivantes une fois le SSL activé dans hPanel
   # RewriteCond %{HTTPS} off
   # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

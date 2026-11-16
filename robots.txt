@@ -6,4 +6,4 @@ Disallow: /compte
 Disallow: /connexion
 Disallow: /install.php
 
-Sitemap: https://agromina.pixelpub.online/sitemap.xml
+Sitemap: https://agrominasn.com/sitemap.xml
