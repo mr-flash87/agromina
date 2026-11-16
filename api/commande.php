@@ -142,6 +142,9 @@ if ($notify !== '' && function_exists('mail')) {
     @mail($notify, "=?UTF-8?B?" . base64_encode("Nouvelle commande $ref") . "?=", $body, "Content-Type: text/plain; charset=UTF-8");
 }
 
+// Confirmation automatique par e-mail au client (s'il a donné son adresse).
+email_order_update(['ref' => $ref, 'full_name' => $fullName, 'phone' => $phone, 'email' => $email, 'total' => $total, 'payment_method' => $payment, 'status' => 'nouvelle']);
+
 // Réponse immédiate au client, puis notification des téléphones admin en arrière-plan.
 $response = json_encode(['ok' => true, 'ref' => $ref, 'subtotal' => $subtotal, 'deliveryFee' => $fee, 'total' => $total], JSON_UNESCAPED_UNICODE);
 header('Content-Type: application/json; charset=utf-8');

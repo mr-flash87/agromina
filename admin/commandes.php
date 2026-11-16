@@ -25,7 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $id]);
         }
         $pdo->commit();
-        flash('success', 'Statut mis à jour');
+        if ($old !== false && $old !== $status) {
+            $row = db()->prepare('SELECT * FROM orders WHERE id = ?');
+            $row->execute([$id]);
+            $order = $row->fetch();
+            $mailed = $order && email_order_update($order);
+            $_SESSION['notify_order'] = $id; // propose d'envoyer le message WhatsApp / SMS
+            flash('success', 'Statut mis à jour' . ($mailed ? ' · e-mail envoyé au client' : ''));
+        } else {
+            flash('success', 'Statut mis à jour');
+        }
     } else {
         flash('error', 'Changement de statut impossible.');
     }
@@ -67,6 +76,14 @@ $dayLabel = static function (string $k) use ($today, $yesterday) {
 };
 
 admin_header('Commandes', 'commandes');
+?>
+<?php
+$notifyId = (int) ($_SESSION['notify_order'] ?? 0);
+unset($_SESSION['notify_order']);
+$notify = null;
+if ($notifyId) { $nst = db()->prepare('SELECT * FROM orders WHERE id = ?'); $nst->execute([$notifyId]); $notify = $nst->fetch() ?: null; }
+?>
+<?php
 admin_title('Commandes');
 ?>
 <form class="toolbar" method="get">
@@ -89,7 +106,7 @@ admin_title('Commandes');
     <?php else: ?>
       <div class="orders-stack">
         <?php foreach ($list as $o): $its = $items[(int) $o['id']] ?? []; $n = array_sum(array_column($its, 'quantity')); ?>
-          <details class="panel order" id="o<?= (int) $o['id'] ?>" <?= $q !== '' && count($orders) === 1 ? 'open' : '' ?>>
+          <details class="panel order" id="o<?= (int) $o['id'] ?>" <?= ($q !== '' && count($orders) === 1) || ($notify && (int) $notify['id'] === (int) $o['id']) ? 'open' : '' ?>>
             <summary>
               <div style="min-width:0">
                 <p class="nm"><?= e($o['full_name']) ?> <?= icon('chevron-down') ?></p>
@@ -98,9 +115,26 @@ admin_title('Commandes');
               <div class="r"><b><?= fcfa((int) $o['total']) ?></b><?= status_pill($o['status']) ?></div>
             </summary>
             <div class="order-body">
+              <?php if ($notify && (int) $notify['id'] === (int) $o['id']): ?>
+  <div class="notify-card">
+    <div class="notify-text"><span class="notify-ic"><?= icon('bell') ?></span><div><b>Prévenir <?= e($notify['full_name']) ?></b><small>Commande <?= e($notify['ref']) ?> · <?= e(ORDER_STATUSES[$notify['status']]) ?></small></div></div>
+    <p class="notify-preview"><?= nl2br(e(order_message($notify))) ?></p>
+    <div class="notify-actions">
+      <a class="nbtn wa" href="<?= e(order_whatsapp_link($notify)) ?>" target="_blank" rel="noopener"><?= icon('whatsapp') ?>WhatsApp</a>
+      <a class="nbtn" href="<?= e(order_sms_link($notify)) ?>"><?= icon('message') ?>SMS</a>
+      <button type="button" class="nbtn ghost" data-dismiss-notify>Plus tard</button>
+    </div>
+  </div>
+              <?php endif; ?>
               <div class="contact-chips">
                 <a href="tel:<?= e($o['phone']) ?>"><?= icon('phone') ?><?= e($o['phone']) ?></a>
-                <a class="wa" href="https://wa.me/<?= e(preg_replace('/\D/', '', $o['phone'])) ?>" target="_blank" rel="noopener">WhatsApp</a>
+                <a class="wa" href="https://wa.me/<?= e(phone_digits($o['phone'])) ?>" target="_blank" rel="noopener">WhatsApp</a>
+              </div>
+              <div class="msg-row">
+                <span class="muted">Envoyer le message « <?= e(ORDER_STATUSES[$o['status']]) ?> » :</span>
+                <a class="nbtn wa sm" href="<?= e(order_whatsapp_link($o)) ?>" target="_blank" rel="noopener"><?= icon('whatsapp') ?>WhatsApp</a>
+                <a class="nbtn sm" href="<?= e(order_sms_link($o)) ?>"><?= icon('message') ?>SMS</a>
+                <?php if ($o['email']): ?><a class="nbtn sm" href="mailto:<?= e($o['email']) ?>?subject=<?= rawurlencode('AgroMina – commande ' . $o['ref']) ?>&amp;body=<?= rawurlencode(order_message($o)) ?>"><?= icon('mail') ?>E-mail</a><?php endif; ?>
               </div>
               <p class="muted"><?= e($o['address']) ?><?= $o['city'] ? ', ' . e($o['city']) : '' ?> · <?= e($o['payment_method']) ?><?= $o['email'] ? ' · ' . e($o['email']) : '' ?></p>
               <?php if ($o['note']): ?><p class="note-box">Note : <?= e($o['note']) ?></p><?php endif; ?>
@@ -133,4 +167,8 @@ admin_title('Commandes');
   </section>
 <?php endforeach; ?>
 <?php if (!$groups): ?><div class="panel empty-panel">Aucune commande trouvée.</div><?php endif; ?>
+<script>
+document.querySelectorAll("[data-dismiss-notify]").forEach(function (b) { b.addEventListener("click", function () { b.closest(".notify-card").remove(); }); });
+document.querySelectorAll(".notify-card .nbtn[href]").forEach(function (a) { a.addEventListener("click", function () { setTimeout(function () { var c = a.closest(".notify-card"); if (c) c.remove(); }, 400); }); });
+</script>
 <?php admin_footer(); ?>

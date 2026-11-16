@@ -647,3 +647,72 @@ function record_product_view(int $productId): void
         error_log('AgroMina vues: ' . $e->getMessage());
     }
 }
+
+// ---------------------------------------------------------------------------
+// Messages de suivi envoyés au client (WhatsApp, SMS, e-mail)
+// ---------------------------------------------------------------------------
+
+/** Adresse complète du site (https://domaine/…), pour les liens envoyés aux clients. */
+function absolute_url(string $path = '', array $query = []): string
+{
+    $https = ($_SERVER['HTTPS'] ?? '') !== '' && ($_SERVER['HTTPS'] ?? '') !== 'off'
+        || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https' || ($_SERVER['SERVER_PORT'] ?? '') === '443';
+    $host = preg_replace('/[^A-Za-z0-9.\-:]/', '', (string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    return ($https ? 'https' : 'http') . '://' . $host . url($path, $query);
+}
+
+/** Texte du message envoyé au client selon le statut de sa commande. */
+function order_message(array $o, ?string $status = null): string
+{
+    $status ??= $o['status'];
+    $first = trim(explode(' ', trim((string) $o['full_name']))[0] ?? '');
+    $ref = $o['ref'];
+    $total = fcfa((int) $o['total']);
+    $track = absolute_url('suivi', ['ref' => $ref]);
+    $hello = 'Bonjour' . ($first !== '' ? ' ' . $first : '') . ',';
+    $msg = match ($status) {
+        'confirmee' => "$hello votre commande $ref ($total) est confirmée. Nous la préparons avec soin. Paiement : " . $o['payment_method'] . '.',
+        'en_preparation' => "$hello votre commande $ref est en préparation et sera bientôt en route. Notre livreur vous appellera avant de passer.",
+        'livree' => "$hello votre commande $ref a bien été livrée. Merci pour votre confiance et à bientôt sur AgroMina !",
+        'annulee' => "$hello votre commande $ref a été annulée. Pour toute question, répondez simplement à ce message.",
+        default => "$hello merci pour votre commande $ref ($total) chez AgroMina. Nous l'avons bien reçue et vous contactons très vite pour la confirmer.",
+    };
+    return $msg . ($status !== 'annulee' && $status !== 'livree' ? "\nSuivre ma commande : $track" : '') . "\n— AgroMina, produits du Delta du Saloum";
+}
+
+/** Numéro au format international sans « + » (pour wa.me). */
+function phone_digits(string $phone): string
+{
+    $d = preg_replace('/\D/', '', $phone);
+    return strlen($d) === 9 ? '221' . $d : $d; // numéro sénégalais saisi sans indicatif
+}
+
+function order_whatsapp_link(array $o, ?string $status = null): string
+{
+    return 'https://wa.me/' . phone_digits($o['phone']) . '?text=' . rawurlencode(order_message($o, $status));
+}
+
+function order_sms_link(array $o, ?string $status = null): string
+{
+    // « ?&body= » est compris à la fois par iPhone et Android.
+    return 'sms:+' . phone_digits($o['phone']) . '?&body=' . rawurlencode(order_message($o, $status));
+}
+
+/** E-mail automatique au client (s'il a laissé son adresse). Silencieux en cas d'échec. */
+function email_order_update(array $o, ?string $status = null): bool
+{
+    $to = trim((string) ($o['email'] ?? ''));
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL) || !function_exists('mail')) return false;
+    $status ??= $o['status'];
+    $subjects = [
+        'nouvelle' => 'Commande %s bien reçue', 'confirmee' => 'Commande %s confirmée',
+        'en_preparation' => 'Commande %s en préparation', 'livree' => 'Commande %s livrée', 'annulee' => 'Commande %s annulée',
+    ];
+    $subject = 'AgroMina – ' . sprintf($subjects[$status] ?? 'Commande %s', $o['ref']);
+    $from = (string) cfg('contact_email', '');
+    $host = preg_replace('/^www\./', '', preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
+    $sender = $host !== '' && $host !== 'localhost' ? 'no-reply@' . $host : $from;
+    $headers = "Content-Type: text/plain; charset=UTF-8\r\nFrom: =?UTF-8?B?" . base64_encode('AgroMina') . "?= <$sender>";
+    if ($from !== '' && filter_var($from, FILTER_VALIDATE_EMAIL)) $headers .= "\r\nReply-To: $from";
+    return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', order_message($o, $status), $headers);
+}
