@@ -842,7 +842,7 @@ function bbg_request(array $payload): array
 }
 
 /** Envoie le modèle WhatsApp au numéro donné (format international, ex. 221771234567). */
-function whatsapp_send_template(string $phone, array $vars): array
+function whatsapp_send_template(string $phone, array $vars, string $buttonUrl = ''): array
 {
     $cfg = whatsapp_settings();
     if ($cfg['token'] === '') return [false, 'Jeton API BBG SMS non renseigné'];
@@ -854,6 +854,8 @@ function whatsapp_send_template(string $phone, array $vars): array
         'language' => $cfg['language'],
     ];
     foreach (array_values($vars) as $i => $v) $payload['var' . ($i + 1)] = $v;
+    // Bouton « Suivre ma commande » du modèle : BBG remplace {{1}} de l'adresse par cette valeur (la référence).
+    if ($buttonUrl !== '') $payload['button_url'] = $buttonUrl;
     if ($cfg['from'] !== '') $payload['whatsapp_from'] = phone_digits($cfg['from']);
     return bbg_request($payload);
 }
@@ -862,7 +864,7 @@ function whatsapp_send_template(string $phone, array $vars): array
 function whatsapp_order_confirmation(array $o, bool $force = false): ?array
 {
     if (!$force && !whatsapp_settings()['enabled']) return null;
-    [$ok, $info] = whatsapp_send_template($o['phone'], whatsapp_order_vars($o));
+    [$ok, $info] = whatsapp_send_template($o['phone'], whatsapp_order_vars($o), (string) $o['ref']);
     try {
         db()->prepare('INSERT INTO message_log (order_id, channel, recipient, ok, info) VALUES (?, ?, ?, ?, ?)')
             ->execute([$o['id'] ?? null, 'whatsapp', phone_digits($o['phone']), $ok ? 1 : 0, $info]);
