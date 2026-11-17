@@ -21,7 +21,7 @@ $guessBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'
 $v = [
     'db_host' => 'localhost', 'db_name' => '', 'db_user' => '', 'db_pass' => '',
     'base_url' => $guessBase, 'admin_email' => '', 'admin_password' => '',
-    'contact_phone' => '+221 00 000 00 00', 'contact_email' => 'contact@agromina.sn', 'order_notify_email' => '',
+    'contact_phone' => '+221 00 000 00 00', 'contact_email' => 'contact@agrominasn.com', 'order_notify_email' => '',
 ];
 
 if (!$locked && $_SERVER['REQUEST_METHOD'] === 'POST') {

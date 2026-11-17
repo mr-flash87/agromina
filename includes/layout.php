@@ -129,10 +129,9 @@ function page_footer(array $extraScripts = []): void
           <a class="wa-btn" href="https://wa.me/<?= e($wa) ?>?text=<?= rawurlencode('Bonjour AgroMina, je souhaite passer une commande.') ?>" target="_blank" rel="noopener"><?= icon('message') ?> Commander sur WhatsApp</a>
         <?php endif; ?>
         <div class="socials">
-          <a href="<?= e(cfg('facebook_url', '#')) ?>" aria-label="Facebook" target="_blank" rel="noopener"><?= icon('facebook') ?></a>
-          <a href="<?= e(cfg('instagram_url', '#')) ?>" aria-label="Instagram" target="_blank" rel="noopener"><?= icon('instagram') ?></a>
+          <?php foreach (social_links() as $sk => [$sn, $su]): ?><a href="<?= e($su) ?>" aria-label="AgroMina sur <?= e($sn) ?>" target="_blank" rel="noopener me"><?= icon($sk) ?></a><?php endforeach; ?>
           <?php if ($wa): ?><a href="https://wa.me/<?= e($wa) ?>" aria-label="WhatsApp" target="_blank" rel="noopener"><?= icon('message') ?></a><?php endif; ?>
-          <a href="mailto:<?= e(cfg('contact_email', 'contact@agromina.sn')) ?>" aria-label="E-mail"><?= icon('mail') ?></a>
+          <a href="mailto:<?= e(shop_email()) ?>" aria-label="E-mail"><?= icon('mail') ?></a>
         </div>
       </div>
       <div class="footer-col">
@@ -158,7 +157,7 @@ function page_footer(array $extraScripts = []): void
         <ul class="contact-list">
           <li><span><?= icon('map-pin') ?></span><?= e(cfg('contact_address', 'Delta du Saloum, Sénégal')) ?></li>
           <li><span><?= icon('phone') ?></span><a href="tel:<?= e(preg_replace('/[^\d+]/', '', (string) cfg('contact_phone', ''))) ?>"><?= e(cfg('contact_phone', '+221 00 000 00 00')) ?></a></li>
-          <li><span><?= icon('mail') ?></span><a href="mailto:<?= e(cfg('contact_email', 'contact@agromina.sn')) ?>"><?= e(cfg('contact_email', 'contact@agromina.sn')) ?></a></li>
+          <li><span><?= icon('mail') ?></span><a href="mailto:<?= e(shop_email()) ?>"><?= e(shop_email()) ?></a></li>
         </ul>
         <h4 class="pay-title">Moyens de paiement</h4>
         <div class="pay-badges"><span>Espèces</span><span>Wave</span><span>Orange Money</span></div>
@@ -307,7 +306,7 @@ function legal_identity(): string
         'RCCM' => (string) cfg('legal_rccm', ''),
         'Adresse' => (string) cfg('contact_address', 'Delta du Saloum, Sénégal'),
         'Téléphone' => (string) cfg('contact_phone', ''),
-        'E-mail' => (string) cfg('contact_email', 'contact@agromina.sn'),
+        'E-mail' => shop_email(),
     ];
     $html = '<ul class="legal-id">';
     foreach ($rows as $k => $v) {

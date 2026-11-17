@@ -4,7 +4,7 @@ page_header(['title' => 'Politique de confidentialité – AgroMina', 'descripti
 page_hero('Politique de confidentialité', 'Comment AgroMina collecte, utilise et protège vos données.');
 
 $contact = '<a href="' . e(url('contact')) . '">page Contact</a>';
-$mail = e((string) cfg('contact_email', 'contact@agromina.sn'));
+$mail = e(shop_email());
 
 legal_page([
     ['Qui est responsable de vos données ?', '<p>Le responsable du traitement des données collectées sur ce site est :</p>' . legal_identity()

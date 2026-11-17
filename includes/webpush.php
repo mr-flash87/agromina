@@ -84,7 +84,7 @@ function vapid_header(string $endpoint): string
     $keys = vapid_keys();
     $u = parse_url($endpoint);
     $aud = $u['scheme'] . '://' . $u['host'] . (isset($u['port']) ? ':' . $u['port'] : '');
-    $contact = (string) cfg('order_notify_email', '') ?: (string) cfg('contact_email', 'contact@agromina.sn');
+    $contact = (string) cfg('order_notify_email', '') ?: shop_email();
     $header = b64u_encode(json_encode(['typ' => 'JWT', 'alg' => 'ES256']));
     $claims = b64u_encode(json_encode(['aud' => $aud, 'exp' => time() + 12 * 3600, 'sub' => 'mailto:' . $contact]));
     $priv = openssl_pkey_get_private($keys['private_pem']);

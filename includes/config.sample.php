@@ -21,9 +21,10 @@ return [
     // Coordonnées affichées dans le pied de page
     'contact_address' => 'Delta du Saloum, Sénégal',
     'contact_phone' => '+221 00 000 00 00',
-    'contact_email' => 'contact@agromina.sn',
+    'contact_email' => 'contact@agrominasn.com',
     'facebook_url' => '#',
     'instagram_url' => '#',
+    'tiktok_url' => '#',     // laisser '#' : les réseaux officiels d'AgroMina sont déjà intégrés au site
 
     // Informations légales affichées dans les CGV et la politique de confidentialité (laisser vide si non applicable)
     'legal_name' => 'AgroMina',

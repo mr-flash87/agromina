@@ -23,6 +23,28 @@ function cfg(string $key, mixed $default = null): mixed
     return $CONFIG[$key] ?? $default;
 }
 
+/** Réseaux sociaux officiels d'AgroMina (une adresse renseignée dans config.php reste prioritaire). */
+function social_links(): array
+{
+    $links = [
+        'facebook' => ['Facebook', 'https://www.facebook.com/share/1MabqhSysk/'],
+        'instagram' => ['Instagram', 'https://www.instagram.com/agromina8'],
+        'tiktok' => ['TikTok', 'https://www.tiktok.com/@agromina_transformation8'],
+    ];
+    foreach ($links as $k => $l) {
+        $c = (string) cfg($k . '_url', '');
+        if (preg_match('#^https?://#', $c)) $links[$k][1] = $c;
+    }
+    return $links;
+}
+
+/** E-mail professionnel affiché sur le site (l'ancienne adresse provisoire est remplacée). */
+function shop_email(): string
+{
+    $c = trim((string) cfg('contact_email', ''));
+    return $c === '' || str_ends_with(strtolower($c), '@agromina.sn') ? 'contact@agrominasn.com' : $c;
+}
+
 function e(mixed $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -710,7 +732,7 @@ function email_order_update(array $o, ?string $status = null): bool
         'en_preparation' => 'Commande %s en préparation', 'livree' => 'Commande %s livrée', 'annulee' => 'Commande %s annulée',
     ];
     $subject = 'AgroMina – ' . sprintf($subjects[$status] ?? 'Commande %s', $o['ref']);
-    $from = (string) cfg('contact_email', '');
+    $from = shop_email();
     $host = preg_replace('/^www\./', '', preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
     $sender = $host !== '' && $host !== 'localhost' ? 'no-reply@' . $host : $from;
     $headers = "Content-Type: text/plain; charset=UTF-8\r\nFrom: =?UTF-8?B?" . base64_encode('AgroMina') . "?= <$sender>";
@@ -892,7 +914,7 @@ function meta_excerpt(string $text, int $max = 155): string
 /** Données structurées de l'entreprise (boutique en ligne) pour Google. */
 function schema_organization(): array
 {
-    $same = array_values(array_filter([(string) cfg('facebook_url', ''), (string) cfg('instagram_url', '')], fn($u) => preg_match('#^https?://#', $u)));
+    $same = array_values(array_column(social_links(), 1));
     $org = [
         '@type' => 'OnlineStore',
         '@id' => absolute_url('') . '#organisation',
@@ -908,7 +930,7 @@ function schema_organization(): array
         'paymentAccepted' => 'Espèces à la livraison, Wave, Orange Money',
     ];
     $phone = (string) cfg('contact_phone', '');
-    $mail = (string) cfg('contact_email', '');
+    $mail = shop_email();
     if ($phone !== '' && !str_contains($phone, '00 000')) $org['telephone'] = $phone;
     if ($mail !== '') $org['email'] = $mail;
     if ($same) $org['sameAs'] = $same;

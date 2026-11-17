@@ -33,7 +33,7 @@ page_header([
 ]);
 page_hero('Contact', 'Particuliers ou professionnels, notre équipe vous répond.');
 $phone = (string) cfg('contact_phone', '');
-$mail = (string) cfg('contact_email', 'contact@agromina.sn');
+$mail = shop_email();
 $wa = shop_whatsapp_link('Bonjour AgroMina, j\'ai une question.');
 ?>
 <div class="container contact-layout">
